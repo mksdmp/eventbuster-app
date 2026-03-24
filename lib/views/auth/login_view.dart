@@ -48,79 +48,118 @@ class _LoginViewState extends State<LoginView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Container(
-            width: 400,
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Sign In',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 20),
-                CustomTextField(
-                  controller: controller.emailController,
-                  hint: 'Enter your email',
-                ),
-                const SizedBox(height: 15),
-                CustomTextField(
-                  controller: controller.passwordController,
-                  hint: 'Enter your password',
-                  isPassword: true,
-                ),
-                const SizedBox(height: 10),
-                const Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    'Forgot Password?',
-                    style: TextStyle(color: Colors.orange),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    height: 110,
+                    width: 180,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Image.asset(
+                      'assets/images/logo.jpeg',
+                      fit: BoxFit.contain,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 15),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text('Human check: What is 8 + 3?'),
-                ),
-                const SizedBox(height: 5),
-                CustomTextField(
-                  controller: controller.humanCheckController,
-                  hint: 'Enter answer',
-                ),
-                const SizedBox(height: 20),
-                CustomButton(
-                  text: controller.isLoading ? 'Signing In...' : 'Sign In',
-                  onTap: controller.isLoading ? () {} : handleLogin,
-                ),
-                const SizedBox(height: 15),
-                const Text('Or continue with'),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {},
-                        child: const Text('Google'),
-                      ),
+                  const SizedBox(height: 20),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFE7E7E7)),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x14000000),
+                          blurRadius: 24,
+                          offset: Offset(0, 10),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {},
-                        child: const Text('Facebook'),
-                      ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Sign In',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1F1F1F),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Use your account credentials to continue.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Color(0xFF666666)),
+                        ),
+                        const SizedBox(height: 24),
+                        CustomTextField(
+                          controller: controller.emailController,
+                          hint: 'Enter your email',
+                        ),
+                        const SizedBox(height: 15),
+                        CustomTextField(
+                          controller: controller.passwordController,
+                          hint: 'Enter your password',
+                          isPassword: true,
+                        ),
+                        const SizedBox(height: 10),
+                        const Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            'Forgot Password?',
+                            style: TextStyle(color: Colors.orange),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                controller.captchaQuestion,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF333333),
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(controller.refreshCaptcha);
+                              },
+                              icon: const Icon(Icons.refresh, size: 20),
+                              tooltip: 'Refresh captcha',
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        CustomTextField(
+                          controller: controller.humanCheckController,
+                          hint: 'Enter answer',
+                        ),
+                        const SizedBox(height: 24),
+                        CustomButton(
+                          text: controller.isLoading ? 'Signing In...' : 'Sign In',
+                          onTap: controller.isLoading ? () {} : handleLogin,
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

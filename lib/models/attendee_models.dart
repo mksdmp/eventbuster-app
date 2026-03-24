@@ -156,29 +156,41 @@ class AttendeeOrder {
 }
 
 class AttendeeTicket {
+  final String id;
   final String name;
   final String email;
   final String phone;
   final String ticketType;
+  final bool isCheckedIn;
   final String checkInStatus;
+  final String? paymentStatus;
+  final String? note;
 
   const AttendeeTicket({
+    required this.id,
     required this.name,
     required this.email,
     required this.phone,
     required this.ticketType,
+    required this.isCheckedIn,
     required this.checkInStatus,
+    required this.paymentStatus,
+    required this.note,
   });
 
   factory AttendeeTicket.fromJson(Map<String, dynamic> json) {
     final bool isCheckedIn = json['checkIn'] == true;
 
     return AttendeeTicket(
+      id: _readString(json, ['_id', 'id', 'attendeeId'], fallback: ''),
       name: _readString(json, ['name', 'fullName']),
       email: _readString(json, ['email']),
       phone: _readString(json, ['phone'], fallback: ''),
       ticketType: _readString(json, ['ticketType', 'type'], fallback: 'General'),
+      isCheckedIn: isCheckedIn,
       checkInStatus: isCheckedIn ? 'Checked In' : 'Pending',
+      paymentStatus: _readNullableString(json, ['paymentStatus']),
+      note: _readNullableString(json, ['note']),
     );
   }
 }
@@ -228,6 +240,25 @@ String _readString(
     }
   }
   return fallback;
+}
+
+String? _readNullableString(
+  Map<String, dynamic> json,
+  List<String> keys,
+) {
+  for (final String key in keys) {
+    final dynamic value = json[key];
+    if (value == null) {
+      continue;
+    }
+
+    final String text = value.toString().trim();
+    if (text.isNotEmpty && text.toLowerCase() != 'null') {
+      return text;
+    }
+  }
+
+  return null;
 }
 
 int _readInt(

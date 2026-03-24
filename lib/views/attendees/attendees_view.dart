@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/routes.dart';
 import '../../models/attendee_models.dart';
 import '../../services/auth_service.dart';
 import '../../services/attendees_service.dart';
@@ -13,7 +14,7 @@ class AttendeesView extends StatefulWidget {
 
 class _AttendeesViewState extends State<AttendeesView> {
   static const Color _orange = Color(0xFFFF6A00);
-  static const String _eventId = '69b78c891ab12ddc76e7ac86';
+  static const String _eventId = '69ba09b45dddb1d64f796d77'; // 69b78c891ab12ddc76e7ac86
 
   final AttendeesService _service = AttendeesService();
   final AuthService _authService = AuthService();
@@ -31,10 +32,12 @@ class _AttendeesViewState extends State<AttendeesView> {
   String _selectedStatus = 'All Status';
   String _selectedTicketType = 'All Ticket Types';
   String? _expandedOrderId;
+  String _organizerName = 'Organizer';
 
   @override
   void initState() {
     super.initState();
+    _loadOrganizer();
     _loadAttendees();
     _searchController.addListener(() {
       setState(() {});
@@ -86,6 +89,80 @@ class _AttendeesViewState extends State<AttendeesView> {
     }
   }
 
+  Future<void> _loadOrganizer() async {
+    final Map<String, dynamic>? user = await _authService.getUser();
+    if (!mounted || user == null) {
+      return;
+    }
+
+    setState(() {
+      _organizerName = _resolveOrganizerName(user);
+    });
+  }
+
+  Future<void> _handleProfileMenuSelection(String value) async {
+    if (value != 'sign_out') {
+      return;
+    }
+
+    await _authService.signOut();
+
+    if (!mounted) {
+      return;
+    }
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      Routes.login,
+      (Route<dynamic> route) => false,
+    );
+  }
+
+  String _resolveOrganizerName(Map<String, dynamic> user) {
+    final String fullName = _readUserValue(user, <String>[
+      'organizerName',
+      'organizer_name',
+      'name',
+      'fullName',
+      'full_name',
+      'displayName',
+      'display_name',
+    ]);
+    if (fullName.isNotEmpty) {
+      return fullName;
+    }
+
+    final String firstName = _readUserValue(user, <String>[
+      'firstName',
+      'first_name',
+    ]);
+    final String lastName = _readUserValue(user, <String>[
+      'lastName',
+      'last_name',
+    ]);
+    final String combinedName = '$firstName $lastName'.trim();
+    if (combinedName.isNotEmpty) {
+      return combinedName;
+    }
+
+    final String email = _readUserValue(user, <String>['email']);
+    if (email.isNotEmpty) {
+      return email;
+    }
+
+    return 'Organizer';
+  }
+
+  String _readUserValue(Map<String, dynamic> user, List<String> keys) {
+    for (final String key in keys) {
+      final String value = (user[key] ?? '').toString().trim();
+      if (value.isNotEmpty) {
+        return value;
+      }
+    }
+    return '';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -93,22 +170,66 @@ class _AttendeesViewState extends State<AttendeesView> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        title: const Text(
-          'EventBuster',
-          style: TextStyle(
-            color: Color(0xFF1A2E7A),
-            fontWeight: FontWeight.w700,
-          ),
+        title: Image.asset(
+          'assets/images/logo.jpeg',
+          height: 36,
+          fit: BoxFit.contain,
         ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: CircleAvatar(
-              radius: 14,
-              backgroundColor: _orange,
-              child: const Text(
-                'A',
-                style: TextStyle(color: Colors.white, fontSize: 12),
+            child: PopupMenuButton<String>(
+              offset: const Offset(0, 44),
+              color: Colors.white,
+              surfaceTintColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              onSelected: _handleProfileMenuSelection,
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                PopupMenuItem<String>(
+                  value: '__profile_header__',
+                  enabled: false,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Text(
+                    _organizerName,
+                    style: const TextStyle(
+                      color: Color(0xFF111827),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const PopupMenuDivider(height: 1),
+                const PopupMenuItem<String>(
+                  value: 'sign_out',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout_rounded, size: 18, color: Color(0xFFB91C1C)),
+                      SizedBox(width: 10),
+                      Text(
+                        'Sign out',
+                        style: TextStyle(
+                          color: Color(0xFFB91C1C),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: _orange,
+                child: Text(
+                  _organizerName.isNotEmpty
+                      ? _organizerName.substring(0, 1).toUpperCase()
+                      : 'O',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ),
             ),
           ),
@@ -221,11 +342,6 @@ class _AttendeesViewState extends State<AttendeesView> {
           onTap: _openAddAttendeeDialog,
         ),
         _actionButton(
-          label: 'Export CSV',
-          icon: Icons.file_download_outlined,
-          onTap: () => _showPlaceholderAction(context, 'Export CSV'),
-        ),
-        _actionButton(
           label: 'Scan QR',
           icon: Icons.qr_code_scanner,
           filled: true,
@@ -285,57 +401,89 @@ class _AttendeesViewState extends State<AttendeesView> {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFD7DCE2)),
       ),
-      child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 700,
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search by name or email...',
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
-                ),
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search by name or email...',
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
               ),
             ),
           ),
-          _statusDropdown(),
-          _ticketDropdown(),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _statusDropdown(),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _ticketDropdown(),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 
   Widget _statusDropdown() {
-    const List<String> statuses = <String>[
+    final Set<String> statusSet = _orders
+        .expand((AttendeeOrder order) => order.attendees)
+        .map((AttendeeTicket attendee) => _normalizeFilterLabel(attendee.checkInStatus))
+        .where((String status) => status.isNotEmpty)
+        .toSet();
+    final List<String> sortedStatuses = statusSet.toList()..sort();
+    final List<String> statuses = <String>[
       'All Status',
-      'Checked In',
-      'Pending',
+      ...sortedStatuses,
     ];
 
-    return SizedBox(
-      width: 160,
-      child: DropdownButtonFormField<String>(
-        initialValue: _selectedStatus,
-        decoration: _dropdownDecoration(),
-        items: statuses
-            .map((String e) => DropdownMenuItem<String>(value: e, child: Text(e)))
-            .toList(),
-        onChanged: (String? value) {
-          if (value != null) {
-            setState(() {
-              _selectedStatus = value;
-            });
-          }
-        },
-      ),
+    return DropdownButtonFormField<String>(
+      value: statuses.contains(_selectedStatus) ? _selectedStatus : 'All Status',
+      isExpanded: true,
+      decoration: _dropdownDecoration(),
+      items: statuses
+          .map(
+            (String e) => DropdownMenuItem<String>(
+              value: e,
+              child: Text(
+                e,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          )
+          .toList(),
+      selectedItemBuilder: (BuildContext context) {
+        return statuses
+            .map(
+              (String e) => Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  e,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            )
+            .toList();
+      },
+      onChanged: (String? value) {
+        if (value != null) {
+          setState(() {
+            _selectedStatus = value;
+          });
+        }
+      },
     );
   }
 
@@ -344,7 +492,7 @@ class _AttendeesViewState extends State<AttendeesView> {
         .expand((AttendeeOrder order) => order.attendees)
         .map((AttendeeTicket attendee) => attendee.ticketType.trim())
         .where((String type) => type.isNotEmpty)
-        .map((String type) => _titleCase(type.toLowerCase()))
+        .map(_normalizeFilterLabel)
         .toSet();
     final List<String> sortedTypes = ticketTypeSet.toList()..sort();
     final List<String> ticketTypes = <String>[
@@ -352,22 +500,45 @@ class _AttendeesViewState extends State<AttendeesView> {
       ...sortedTypes,
     ];
 
-    return SizedBox(
-      width: 180,
-      child: DropdownButtonFormField<String>(
-        initialValue: _selectedTicketType,
-        decoration: _dropdownDecoration(),
-        items: ticketTypes
-            .map((String e) => DropdownMenuItem<String>(value: e, child: Text(e)))
-            .toList(),
-        onChanged: (String? value) {
-          if (value != null) {
-            setState(() {
-              _selectedTicketType = value;
-            });
-          }
-        },
-      ),
+    return DropdownButtonFormField<String>(
+      value: ticketTypes.contains(_selectedTicketType)
+          ? _selectedTicketType
+          : 'All Ticket Types',
+      isExpanded: true,
+      decoration: _dropdownDecoration(),
+      items: ticketTypes
+          .map(
+            (String e) => DropdownMenuItem<String>(
+              value: e,
+              child: Text(
+                e,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          )
+          .toList(),
+      selectedItemBuilder: (BuildContext context) {
+        return ticketTypes
+            .map(
+              (String e) => Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  e,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            )
+            .toList();
+      },
+      onChanged: (String? value) {
+        if (value != null) {
+          setState(() {
+            _selectedTicketType = value;
+          });
+        }
+      },
     );
   }
 
@@ -409,7 +580,7 @@ class _AttendeesViewState extends State<AttendeesView> {
   }
 
   List<Widget> _buildOrderCards() {
-    final List<AttendeeOrder> filteredOrders = _filteredOrders();
+    final List<_FilteredOrderResult> filteredOrders = _filteredOrders();
     if (filteredOrders.isEmpty) {
       return <Widget>[
         Container(
@@ -424,7 +595,8 @@ class _AttendeesViewState extends State<AttendeesView> {
       ];
     }
 
-    return filteredOrders.map((AttendeeOrder order) {
+    return filteredOrders.map((_FilteredOrderResult filteredOrder) {
+      final AttendeeOrder order = filteredOrder.order;
       final bool expanded = _expandedOrderId == order.orderId;
       return Container(
         margin: const EdgeInsets.only(bottom: 10),
@@ -452,19 +624,23 @@ class _AttendeesViewState extends State<AttendeesView> {
                         children: [
                           Row(
                             children: [
-                              Text(
-                                'Order #${order.orderId}',
-                                style: const TextStyle(
-                                  color: _orange,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w700,
+                              Expanded(
+                                child: Text(
+                                  'Order #${order.orderId}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: _orange,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 10),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
+                                  horizontal: 6,
+                                  vertical: 3,
                                 ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFDCFCE7),
@@ -475,6 +651,7 @@ class _AttendeesViewState extends State<AttendeesView> {
                                   style: const TextStyle(
                                     color: Color(0xFF166534),
                                     fontWeight: FontWeight.w600,
+                                    fontSize: 12,
                                   ),
                                 ),
                               ),
@@ -482,7 +659,7 @@ class _AttendeesViewState extends State<AttendeesView> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '${order.ticketCount} Tickets',
+                            '${filteredOrder.attendees.length} Tickets',
                             style: const TextStyle(
                               fontSize: 30,
                               fontWeight: FontWeight.w700,
@@ -512,7 +689,7 @@ class _AttendeesViewState extends State<AttendeesView> {
             ),
             if (expanded) ...[
               const Divider(height: 1, color: Color(0xFFE2E8F0)),
-              _buildExpandedTable(order),
+              _buildExpandedTable(filteredOrder.attendees),
             ],
           ],
         ),
@@ -520,69 +697,11 @@ class _AttendeesViewState extends State<AttendeesView> {
     }).toList();
   }
 
-  Widget _buildExpandedTable(AttendeeOrder order) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SizedBox(
-        width: 1050,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-          child: Column(
-            children: [
-              const Row(
-                children: [
-                  Expanded(
-                    flex: 4,
-                    child: Text(
-                      'Attendee',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Text(
-                      'Ticket Type',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Text(
-                      'Check-in Status',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        'Actions',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              const Divider(height: 1),
-              const SizedBox(height: 6),
-              ...order.attendees.map(_buildAttendeeRow),
-            ],
-          ),
-        ),
+  Widget _buildExpandedTable(List<AttendeeTicket> attendees) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(
+        children: attendees.map(_buildAttendeeRow).toList(),
       ),
     );
   }
@@ -596,9 +715,9 @@ class _AttendeesViewState extends State<AttendeesView> {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
-            flex: 4,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -614,107 +733,88 @@ class _AttendeesViewState extends State<AttendeesView> {
                   attendee.email,
                   style: const TextStyle(color: Color(0xFF64748B)),
                 ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDBEAFE),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        attendee.ticketType.toLowerCase(),
+                        style: const TextStyle(color: Color(0xFF1D4ED8)),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF3C7),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        _titleCase(attendee.checkInStatus),
+                        style: const TextStyle(color: Color(0xFF92400E)),
+                      ),
+                    ),
+                    if (_isRefundedTicket(attendee))
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEE2E2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Refunded',
+                          style: TextStyle(color: Color(0xFFB91C1C)),
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),
-          Expanded(
-            flex: 1,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          const SizedBox(width: 12),
+          Align(
+            alignment: Alignment.topRight,
+            child: PopupMenuButton<String>(
+              padding: EdgeInsets.zero,
+              splashRadius: 18,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              color: Colors.white,
+              icon: Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDBEAFE),
-                  borderRadius: BorderRadius.circular(4),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF1F2937), width: 2),
                 ),
-                child: Text(
-                  attendee.ticketType.toLowerCase(),
-                  style: const TextStyle(color: Color(0xFF1D4ED8)),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  _titleCase(attendee.checkInStatus),
-                  style: const TextStyle(color: Color(0xFF92400E)),
+                child: const Icon(
+                  Icons.menu_rounded,
+                  color: Color(0xFF475569),
+                  size: 18,
                 ),
               ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: PopupMenuButton<String>(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                color: Colors.white,
-                icon: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF1F2937), width: 2),
-                  ),
-                  child: const Icon(Icons.menu_rounded, color: Color(0xFF475569), size: 18),
-                ),
-                onSelected: (String value) {
-                  if (value == 'Edit Attendee info') {
-                    _openEditAttendeeDialog(attendee);
-                    return;
-                  }
-                  if (value == 'Refund Ticket') {
-                    _openRefundTicketDialog(attendee);
-                    return;
-                  }
-                  if (value == 'Transfer Ticket') {
-                    _openTransferTicketDialog(attendee);
-                    return;
-                  }
-                  if (value == 'Add Attendee Note') {
-                    _openAttendeeNoteDialog(attendee);
-                    return;
-                  }
-                  _showPlaceholderAction(context, value);
-                },
-                itemBuilder: (BuildContext context) => const [
-                  PopupMenuItem(
-                    value: 'Check In',
-                    child: Text(
-                      'Check In',
-                      style: TextStyle(
-                        color: Color(0xFFFF6A00),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'Edit Attendee info',
-                    child: Text('Edit Attendee info'),
-                  ),
-                  PopupMenuItem(value: 'Refund Ticket', child: Text('Refund Ticket')),
-                  PopupMenuItem(
-                    value: 'Transfer Ticket',
-                    child: Text('Transfer Ticket'),
-                  ),
-                  PopupMenuItem(
-                    value: 'Add Attendee Note',
-                    child: Text('Add Attendee Note'),
-                  ),
-                ],
-              ),
+              onSelected: (String value) {
+                _handleAttendeeMenuSelection(attendee, value);
+              },
+              itemBuilder: (BuildContext context) => _buildAttendeeMenuItems(attendee),
             ),
           ),
         ],
@@ -722,37 +822,42 @@ class _AttendeesViewState extends State<AttendeesView> {
     );
   }
 
-  List<AttendeeOrder> _filteredOrders() {
+  List<_FilteredOrderResult> _filteredOrders() {
     final String search = _searchController.text.trim().toLowerCase();
 
-    return _orders.where((AttendeeOrder order) {
-      final bool statusOk = _selectedStatus == 'All Status' ||
-          order.attendees.any(
-            (AttendeeTicket attendee) =>
-                _titleCase(attendee.checkInStatus) == _selectedStatus,
-          );
+    final List<_FilteredOrderResult> filtered = <_FilteredOrderResult>[];
 
-      final bool ticketOk = _selectedTicketType == 'All Ticket Types' ||
-          order.attendees.any(
-            (AttendeeTicket attendee) {
-              final String normalizedType =
-                  _titleCase(attendee.ticketType.trim().toLowerCase());
-              return normalizedType == _selectedTicketType;
-            },
-          );
-
-      final bool searchOk = search.isEmpty ||
+    for (final AttendeeOrder order in _orders) {
+      final bool orderMatchesSearch = search.isEmpty ||
           order.orderId.toLowerCase().contains(search) ||
           order.buyerName.toLowerCase().contains(search) ||
-          order.eventName.toLowerCase().contains(search) ||
-          order.attendees.any(
-            (AttendeeTicket attendee) =>
-                attendee.name.toLowerCase().contains(search) ||
-                attendee.email.toLowerCase().contains(search),
-          );
+          order.eventName.toLowerCase().contains(search);
 
-      return statusOk && ticketOk && searchOk;
-    }).toList();
+      final List<AttendeeTicket> visibleAttendees = order.attendees.where((
+        AttendeeTicket attendee,
+      ) {
+        final bool statusOk = _selectedStatus == 'All Status' ||
+            _normalizeFilterLabel(attendee.checkInStatus) == _selectedStatus;
+        final bool ticketOk = _selectedTicketType == 'All Ticket Types' ||
+            _normalizeFilterLabel(attendee.ticketType) == _selectedTicketType;
+        final bool attendeeMatchesSearch = search.isEmpty ||
+            attendee.name.toLowerCase().contains(search) ||
+            attendee.email.toLowerCase().contains(search);
+
+        return statusOk && ticketOk && (orderMatchesSearch || attendeeMatchesSearch);
+      }).toList();
+
+      if (visibleAttendees.isNotEmpty) {
+        filtered.add(
+          _FilteredOrderResult(
+            order: order,
+            attendees: visibleAttendees,
+          ),
+        );
+      }
+    }
+
+    return filtered;
   }
 
   String _titleCase(String value) {
@@ -767,6 +872,150 @@ class _AttendeesViewState extends State<AttendeesView> {
               e.isEmpty ? e : '${e[0].toUpperCase()}${e.substring(1).toLowerCase()}',
         )
         .join(' ');
+  }
+
+  String _normalizeFilterLabel(String value) {
+    return _titleCase(
+      value
+          .trim()
+          .replaceAll('_', ' ')
+          .replaceAll('-', ' ')
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .toLowerCase(),
+    );
+  }
+
+  bool _isRefundedTicket(AttendeeTicket attendee) {
+    return _normalizeStatusKey(attendee.paymentStatus) == 'refunded';
+  }
+
+  bool _isCheckedInTicket(AttendeeTicket attendee) {
+    return attendee.isCheckedIn;
+  }
+
+  String _normalizeStatusKey(Object? value) {
+    return (value ?? '')
+        .toString()
+        .trim()
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .toLowerCase();
+  }
+
+  List<PopupMenuEntry<String>> _buildAttendeeMenuItems(AttendeeTicket attendee) {
+    if (_isRefundedTicket(attendee)) {
+      return <PopupMenuEntry<String>>[
+        const PopupMenuItem<String>(
+          value: 'Add Attendee Note',
+          child: Text('Add Attendee Note'),
+        ),
+      ];
+    }
+
+    return <PopupMenuEntry<String>>[
+      PopupMenuItem<String>(
+        value: _isCheckedInTicket(attendee) ? 'Undo Check In' : 'Check In',
+        child: Text(
+          _isCheckedInTicket(attendee) ? 'Undo Check In' : 'Check In',
+          style: TextStyle(
+            color: Color(0xFFFF6A00),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      const PopupMenuItem<String>(
+        value: 'Edit Attendee info',
+        child: Text('Edit Attendee info'),
+      ),
+      const PopupMenuItem<String>(
+        value: 'Refund Ticket',
+        child: Text('Refund Ticket'),
+      ),
+      const PopupMenuItem<String>(
+        value: 'Transfer Ticket',
+        child: Text('Transfer Ticket'),
+      ),
+      const PopupMenuItem<String>(
+        value: 'Add Attendee Note',
+        child: Text('Add Attendee Note'),
+      ),
+    ];
+  }
+
+  Future<void> _handleAttendeeMenuSelection(
+    AttendeeTicket attendee,
+    String value,
+  ) async {
+    if (value == 'Check In' || value == 'Undo Check In') {
+      await _toggleAttendeeCheckIn(
+        attendee: attendee,
+        checkedIn: value == 'Check In',
+      );
+      return;
+    }
+    if (value == 'Edit Attendee info') {
+      await _openEditAttendeeDialog(attendee);
+      return;
+    }
+    if (value == 'Refund Ticket') {
+      await _openRefundTicketDialog(attendee);
+      return;
+    }
+    if (value == 'Transfer Ticket') {
+      await _openTransferTicketDialog(attendee);
+      return;
+    }
+    if (value == 'Add Attendee Note') {
+      await _openAttendeeNoteDialog(attendee);
+      return;
+    }
+    _showPlaceholderAction(context, value);
+  }
+
+  Future<void> _toggleAttendeeCheckIn({
+    required AttendeeTicket attendee,
+    required bool checkedIn,
+  }) async {
+    if (attendee.id.isEmpty) {
+      _showPlaceholderAction(context, 'Missing attendee ID');
+      return;
+    }
+
+    try {
+      final String? token = await _authService.getToken();
+      if (token == null || token.isEmpty) {
+        throw Exception('No auth token found. Please sign in again.');
+      }
+
+      await _service.updateCheckInStatus(
+        attendeeId: attendee.id,
+        checkedIn: checkedIn,
+        token: token,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            checkedIn ? 'Attendee checked in successfully' : 'Check-in undone successfully',
+          ),
+        ),
+      );
+
+      await _loadAttendees();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
   }
 
   String _formatDate(String value) {
@@ -800,333 +1049,152 @@ class _AttendeesViewState extends State<AttendeesView> {
   }
 
   Future<void> _openAddAttendeeDialog() async {
-    final TextEditingController nameController = TextEditingController();
-    final TextEditingController emailController = TextEditingController();
-    final TextEditingController phoneController = TextEditingController();
-    final TextEditingController ticketTypeController = TextEditingController();
-    final TextEditingController quantityController = TextEditingController(text: '1');
+    final BuildContext pageContext = context;
 
-    final List<String> events = _orders
-        .map((AttendeeOrder order) => order.eventName)
-        .toSet()
-        .where((String e) => e.trim().isNotEmpty)
-        .toList();
-
-    if (events.isEmpty) {
-      events.add('Virtual Networking for Women Entrepreneurs');
+    final String? token = await _authService.getToken();
+    if (token == null || token.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(pageContext).showSnackBar(
+          const SnackBar(content: Text('No auth token found. Please sign in again.')),
+        );
+      }
+      return;
     }
 
-    String selectedEvent = events.first;
-    String selectedPaymentStatus = 'Paid';
+    List<OrganizerEventOption> events = <OrganizerEventOption>[];
 
-    await showDialog<void>(
+    try {
+      events = await _service.fetchMyEvents(token: token);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(pageContext).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+      return;
+    }
+
+    if (events.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(pageContext).showSnackBar(
+          const SnackBar(content: Text('No events found for this organizer.')),
+        );
+      }
+      return;
+    }
+
+    final _AddAttendeeSubmission? submission = await showDialog<_AddAttendeeSubmission>(
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black45,
-      builder: (BuildContext dialogContext) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          child: StatefulBuilder(
-            builder: (BuildContext context, StateSetter setModalState) {
-              return Container(
-                constraints: const BoxConstraints(maxWidth: 640),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Add Attendee',
-                              style: TextStyle(
-                                color: _orange,
-                                fontSize: 32,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () => Navigator.of(dialogContext).pop(),
-                            icon: const Icon(Icons.close, color: Color(0xFF64748B)),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      _dialogLabel('Event'),
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedEvent,
-                        decoration: _dialogInputDecoration(),
-                        items: events
-                            .map(
-                              (String e) => DropdownMenuItem<String>(
-                                value: e,
-                                child: Text(e),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (String? value) {
-                          if (value != null) {
-                            setModalState(() {
-                              selectedEvent = value;
-                            });
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                      _dialogLabel('Name'),
-                      TextField(
-                        controller: nameController,
-                        decoration: _dialogInputDecoration(),
-                      ),
-                      const SizedBox(height: 14),
-                      _dialogLabel('Email'),
-                      TextField(
-                        controller: emailController,
-                        decoration: _dialogInputDecoration(),
-                      ),
-                      const SizedBox(height: 14),
-                      _dialogLabel('Phone'),
-                      TextField(
-                        controller: phoneController,
-                        decoration: _dialogInputDecoration(),
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _dialogLabel('Ticket Type'),
-                                TextField(
-                                  controller: ticketTypeController,
-                                  decoration: _dialogInputDecoration(),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _dialogLabel('Quantity'),
-                                TextField(
-                                  controller: quantityController,
-                                  keyboardType: TextInputType.number,
-                                  decoration: _dialogInputDecoration(),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      _dialogLabel('Payment Status'),
-                      DropdownButtonFormField<String>(
-                        initialValue: selectedPaymentStatus,
-                        decoration: _dialogInputDecoration(),
-                        items: const [
-                          DropdownMenuItem(value: 'Paid', child: Text('Paid')),
-                          DropdownMenuItem(value: 'Pending', child: Text('Pending')),
-                          DropdownMenuItem(value: 'Refunded', child: Text('Refunded')),
-                          DropdownMenuItem(value: 'Cash', child: Text('Cash')),
-                          DropdownMenuItem(value: 'Free', child: Text('Free')),
-                        ],
-                        onChanged: (String? value) {
-                          if (value != null) {
-                            setModalState(() {
-                              selectedPaymentStatus = value;
-                            });
-                          }
-                        },
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () => Navigator.of(dialogContext).pop(),
-                            style: TextButton.styleFrom(
-                              backgroundColor: const Color(0xFFF1F5F9),
-                              foregroundColor: const Color(0xFF334155),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 12,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text('Cancel'),
-                          ),
-                          const SizedBox(width: 10),
-                          ElevatedButton(
-                            onPressed: () {
-                              Navigator.of(dialogContext).pop();
-                              _showPlaceholderAction(context, 'Add Attendee');
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: _orange,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 12,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text('Add Attendee'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      },
+      builder: (BuildContext dialogContext) => _AddAttendeeDialog(events: events),
     );
 
-    nameController.dispose();
-    emailController.dispose();
-    phoneController.dispose();
-    ticketTypeController.dispose();
-    quantityController.dispose();
+    if (submission == null) {
+      return;
+    }
+
+    try {
+      await _service.addAttendee(
+        token: token,
+        eventId: submission.eventId,
+        name: submission.name,
+        email: submission.email,
+        phone: submission.phone,
+        ticketType: submission.ticketType,
+        paymentStatus: submission.paymentStatus,
+        quantity: submission.quantity,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(pageContext).showSnackBar(
+        const SnackBar(content: Text('Attendee added successfully')),
+      );
+
+      await _loadAttendees();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(pageContext).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
   }
 
   Future<void> _openEditAttendeeDialog(AttendeeTicket attendee) async {
-    final TextEditingController nameController = TextEditingController(
-      text: attendee.name,
-    );
-    final TextEditingController emailController = TextEditingController(
-      text: attendee.email,
-    );
-    final TextEditingController phoneController = TextEditingController(
-      text: attendee.phone,
-    );
+    final BuildContext pageContext = context;
 
-    await showDialog<void>(
+    final _EditAttendeeSubmission? submission =
+        await showDialog<_EditAttendeeSubmission>(
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black45,
       builder: (BuildContext dialogContext) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 540),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Edit Buyer Info',
-                        style: TextStyle(
-                          color: Color(0xFF1E293B),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 30,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      icon: const Icon(Icons.close, color: Color(0xFF94A3B8)),
-                    ),
-                  ],
-                ),
-                const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                const SizedBox(height: 14),
-                _dialogLabel('Name'),
-                TextField(
-                  controller: nameController,
-                  decoration: _dialogInputDecoration(),
-                ),
-                const SizedBox(height: 12),
-                _dialogLabel('Email'),
-                TextField(
-                  controller: emailController,
-                  decoration: _dialogInputDecoration(),
-                ),
-                const SizedBox(height: 12),
-                _dialogLabel('Phone'),
-                TextField(
-                  controller: phoneController,
-                  decoration: _dialogInputDecoration(),
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      style: TextButton.styleFrom(
-                        backgroundColor: const Color(0xFFF1F5F9),
-                        foregroundColor: const Color(0xFF334155),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text('Cancel'),
-                    ),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(dialogContext).pop();
-                        _showPlaceholderAction(context, 'Save Attendee Info');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _orange,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text('Save'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
+        return _EditAttendeeDialog(attendee: attendee);
       },
     );
 
-    nameController.dispose();
-    emailController.dispose();
-    phoneController.dispose();
+    if (submission == null) {
+      return;
+    }
+
+    if (attendee.id.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(pageContext).showSnackBar(
+          const SnackBar(content: Text('Missing attendee ID')),
+        );
+      }
+      return;
+    }
+
+    final String? token = await _authService.getToken();
+    if (token == null || token.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(pageContext).showSnackBar(
+          const SnackBar(content: Text('No auth token found. Please sign in again.')),
+        );
+      }
+      return;
+    }
+
+    try {
+      await _service.updateAttendeeInfo(
+        token: token,
+        attendeeId: attendee.id,
+        name: submission.name,
+        email: submission.email,
+        phone: submission.phone,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(pageContext).showSnackBar(
+        const SnackBar(content: Text('Attendee info updated successfully')),
+      );
+
+      await _loadAttendees();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(pageContext).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
   }
 
   Future<void> _openRefundTicketDialog(AttendeeTicket attendee) async {
-    await showDialog<void>(
+    final BuildContext pageContext = context;
+
+    final bool? confirmed = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black45,
@@ -1196,8 +1264,7 @@ class _AttendeesViewState extends State<AttendeesView> {
                     const SizedBox(width: 10),
                     ElevatedButton(
                       onPressed: () {
-                        Navigator.of(dialogContext).pop();
-                        _showPlaceholderAction(context, 'Yes, Refund Ticket');
+                        Navigator.of(dialogContext).pop(true);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFEF4444),
@@ -1220,259 +1287,179 @@ class _AttendeesViewState extends State<AttendeesView> {
         );
       },
     );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    if (attendee.id.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(pageContext).showSnackBar(
+          const SnackBar(content: Text('Missing attendee ID')),
+        );
+      }
+      return;
+    }
+
+    final String? token = await _authService.getToken();
+    if (token == null || token.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(pageContext).showSnackBar(
+          const SnackBar(content: Text('No auth token found. Please sign in again.')),
+        );
+      }
+      return;
+    }
+
+    try {
+      await _service.refundAttendee(
+        token: token,
+        attendeeId: attendee.id,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(pageContext).showSnackBar(
+        const SnackBar(content: Text('Ticket refunded successfully')),
+      );
+
+      await _loadAttendees();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(pageContext).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
   }
 
   Future<void> _openTransferTicketDialog(AttendeeTicket attendee) async {
-    final TextEditingController ownerNameController = TextEditingController();
-    final TextEditingController ownerEmailController = TextEditingController();
-
-    await showDialog<void>(
+    final BuildContext pageContext = context;
+    final _TransferAttendeeSubmission? submission =
+        await showDialog<_TransferAttendeeSubmission>(
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black45,
-      builder: (BuildContext dialogContext) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 540),
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Transfer Ticket',
-                        style: TextStyle(
-                          color: Color(0xFF1E293B),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 30,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      icon: const Icon(Icons.close, color: Color(0xFF94A3B8)),
-                    ),
-                  ],
-                ),
-                const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                const SizedBox(height: 14),
-                const Text(
-                  'Transfer this ticket to a new attendee.',
-                  style: TextStyle(
-                    color: Color(0xFF64748B),
-                    fontSize: 18,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _dialogLabel('New Owner Name'),
-                TextField(
-                  controller: ownerNameController,
-                  decoration: _dialogInputDecoration(),
-                ),
-                const SizedBox(height: 12),
-                _dialogLabel('New Owner Email'),
-                TextField(
-                  controller: ownerEmailController,
-                  decoration: _dialogInputDecoration(),
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      style: TextButton.styleFrom(
-                        backgroundColor: const Color(0xFFF8FAFC),
-                        foregroundColor: const Color(0xFF475569),
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 22,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text('Cancel'),
-                    ),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: () {
-                        final String newName = ownerNameController.text.trim();
-                        final String newEmail = ownerEmailController.text.trim();
-
-                        if (newName.isEmpty || newEmail.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Please enter new owner name and email'),
-                            ),
-                          );
-                          return;
-                        }
-
-                        Navigator.of(dialogContext).pop();
-                        _showPlaceholderAction(
-                          context,
-                          'Transfer Ticket (${attendee.name} -> $newName)',
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _orange,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 22,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text('Transfer'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      builder: (BuildContext dialogContext) => const _TransferTicketDialog(),
     );
 
-    ownerNameController.dispose();
-    ownerEmailController.dispose();
+    if (submission == null) {
+      return;
+    }
+
+    if (attendee.id.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(pageContext).showSnackBar(
+          const SnackBar(content: Text('Missing attendee ID')),
+        );
+      }
+      return;
+    }
+
+    final String? token = await _authService.getToken();
+    if (token == null || token.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(pageContext).showSnackBar(
+          const SnackBar(content: Text('No auth token found. Please sign in again.')),
+        );
+      }
+      return;
+    }
+
+    try {
+      await _service.transferAttendee(
+        token: token,
+        attendeeId: attendee.id,
+        newName: submission.newName,
+        newEmail: submission.newEmail,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(pageContext).showSnackBar(
+        const SnackBar(content: Text('Ticket transferred successfully')),
+      );
+
+      await _loadAttendees();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(pageContext).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
   }
 
   Future<void> _openAttendeeNoteDialog(AttendeeTicket attendee) async {
-    final TextEditingController noteController = TextEditingController();
-
-    await showDialog<void>(
+    final BuildContext pageContext = context;
+    final String? note = await showDialog<String>(
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black45,
       builder: (BuildContext dialogContext) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 540),
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Note for ${attendee.name}',
-                        style: const TextStyle(
-                          color: Color(0xFF1E293B),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 30,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      icon: const Icon(Icons.close, color: Color(0xFF94A3B8)),
-                    ),
-                  ],
-                ),
-                const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: noteController,
-                  maxLines: 5,
-                  decoration: InputDecoration(
-                    hintText: 'Add a note...',
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: _orange),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      style: TextButton.styleFrom(
-                        backgroundColor: const Color(0xFFF8FAFC),
-                        foregroundColor: const Color(0xFF475569),
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 22,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text('Cancel'),
-                    ),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: () {
-                        final String note = noteController.text.trim();
-                        if (note.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Please add a note')),
-                          );
-                          return;
-                        }
-
-                        Navigator.of(dialogContext).pop();
-                        _showPlaceholderAction(context, 'Save Note (${attendee.name})');
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _orange,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 22,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      child: const Text('Save'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+        return _AttendeeNoteDialog(
+          attendeeName: attendee.name,
+          initialNote: attendee.note,
         );
       },
     );
 
-    noteController.dispose();
+    if (note == null) {
+      return;
+    }
+
+    if (attendee.id.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(pageContext).showSnackBar(
+          const SnackBar(content: Text('Missing attendee ID')),
+        );
+      }
+      return;
+    }
+
+    final String? token = await _authService.getToken();
+    if (token == null || token.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(pageContext).showSnackBar(
+          const SnackBar(content: Text('No auth token found. Please sign in again.')),
+        );
+      }
+      return;
+    }
+
+    try {
+      await _service.addAttendeeNote(
+        token: token,
+        attendeeId: attendee.id,
+        note: note,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(pageContext).showSnackBar(
+        const SnackBar(content: Text('Attendee note saved successfully')),
+      );
+
+      await _loadAttendees();
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(pageContext).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    }
   }
 
   InputDecoration _dialogInputDecoration() {
@@ -1634,5 +1621,851 @@ class _AttendeesViewState extends State<AttendeesView> {
     );
 
     manualCodeController.dispose();
+  }
+}
+
+class _FilteredOrderResult {
+  final AttendeeOrder order;
+  final List<AttendeeTicket> attendees;
+
+  const _FilteredOrderResult({
+    required this.order,
+    required this.attendees,
+  });
+}
+
+class _AddAttendeeDialog extends StatefulWidget {
+  const _AddAttendeeDialog({
+    required this.events,
+  });
+
+  final List<OrganizerEventOption> events;
+
+  @override
+  State<_AddAttendeeDialog> createState() => _AddAttendeeDialogState();
+}
+
+class _AddAttendeeDialogState extends State<_AddAttendeeDialog> {
+  static const Color _orange = Color(0xFFFF6A00);
+
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _ticketTypeController = TextEditingController();
+  final TextEditingController _quantityController = TextEditingController(text: '1');
+
+  late String _selectedEventId;
+  String _selectedPaymentStatus = 'Paid';
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedEventId = widget.events.first.id;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _ticketTypeController.dispose();
+    _quantityController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 640),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Add Attendee',
+                      style: TextStyle(
+                        color: _orange,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _buildDialogLabel('Event'),
+              DropdownButtonFormField<String>(
+                value: _selectedEventId,
+                isExpanded: true,
+                decoration: _dialogInputDecoration(),
+                items: widget.events
+                    .map(
+                      (OrganizerEventOption event) => DropdownMenuItem<String>(
+                        value: event.id,
+                        child: Text(
+                          event.title,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                    .toList(),
+                selectedItemBuilder: (BuildContext context) {
+                  return widget.events
+                      .map(
+                        (OrganizerEventOption event) => Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            event.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      )
+                      .toList();
+                },
+                onChanged: (String? value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedEventId = value;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 14),
+              _buildDialogLabel('Name'),
+              TextField(
+                controller: _nameController,
+                decoration: _dialogInputDecoration(),
+              ),
+              const SizedBox(height: 14),
+              _buildDialogLabel('Email'),
+              TextField(
+                controller: _emailController,
+                decoration: _dialogInputDecoration(),
+              ),
+              const SizedBox(height: 14),
+              _buildDialogLabel('Phone'),
+              TextField(
+                controller: _phoneController,
+                decoration: _dialogInputDecoration(),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDialogLabel('Ticket Type'),
+                        TextField(
+                          controller: _ticketTypeController,
+                          decoration: _dialogInputDecoration(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDialogLabel('Quantity'),
+                        TextField(
+                          controller: _quantityController,
+                          keyboardType: TextInputType.number,
+                          decoration: _dialogInputDecoration(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              _buildDialogLabel('Payment Status'),
+              DropdownButtonFormField<String>(
+                value: _selectedPaymentStatus,
+                decoration: _dialogInputDecoration(),
+                items: const [
+                  DropdownMenuItem(value: 'Paid', child: Text('Paid')),
+                  DropdownMenuItem(value: 'Pending', child: Text('Pending')),
+                  DropdownMenuItem(value: 'Refunded', child: Text('Refunded')),
+                  DropdownMenuItem(value: 'Cash', child: Text('Cash')),
+                  DropdownMenuItem(value: 'Free', child: Text('Free')),
+                ],
+                onChanged: (String? value) {
+                  if (value != null) {
+                    setState(() {
+                      _selectedPaymentStatus = value;
+                    });
+                  }
+                },
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      backgroundColor: const Color(0xFFF1F5F9),
+                      foregroundColor: const Color(0xFF334155),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _orange,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: const Text('Add Attendee'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _submit() {
+    final String name = _nameController.text.trim();
+    final String email = _emailController.text.trim();
+    final String phone = _phoneController.text.trim();
+    final String ticketType = _ticketTypeController.text.trim();
+    final int? quantity = int.tryParse(_quantityController.text.trim());
+
+    if (name.isEmpty || email.isEmpty || phone.isEmpty || ticketType.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all required fields')),
+      );
+      return;
+    }
+
+    if (quantity == null || quantity <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a valid quantity')),
+      );
+      return;
+    }
+
+    Navigator.of(context).pop(
+      _AddAttendeeSubmission(
+        eventId: _selectedEventId,
+        name: name,
+        email: email,
+        phone: phone,
+        ticketType: ticketType,
+        paymentStatus: _selectedPaymentStatus,
+        quantity: quantity,
+      ),
+    );
+  }
+
+  InputDecoration _dialogInputDecoration() {
+    return InputDecoration(
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFFFF6A00)),
+      ),
+    );
+  }
+
+  Widget _buildDialogLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF334155),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _AddAttendeeSubmission {
+  final String eventId;
+  final String name;
+  final String email;
+  final String phone;
+  final String ticketType;
+  final String paymentStatus;
+  final int quantity;
+
+  const _AddAttendeeSubmission({
+    required this.eventId,
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.ticketType,
+    required this.paymentStatus,
+    required this.quantity,
+  });
+}
+
+class _EditAttendeeDialog extends StatefulWidget {
+  const _EditAttendeeDialog({
+    required this.attendee,
+  });
+
+  final AttendeeTicket attendee;
+
+  @override
+  State<_EditAttendeeDialog> createState() => _EditAttendeeDialogState();
+}
+
+class _EditAttendeeDialogState extends State<_EditAttendeeDialog> {
+  static const Color _orange = Color(0xFFFF6A00);
+
+  late final TextEditingController _nameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.attendee.name);
+    _emailController = TextEditingController(text: widget.attendee.email);
+    _phoneController = TextEditingController(text: widget.attendee.phone);
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 540),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Edit Buyer Info',
+                    style: TextStyle(
+                      color: Color(0xFF1E293B),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 30,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close, color: Color(0xFF94A3B8)),
+                ),
+              ],
+            ),
+            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            const SizedBox(height: 14),
+            _buildDialogLabel('Name'),
+            TextField(
+              controller: _nameController,
+              decoration: _dialogInputDecoration(),
+            ),
+            const SizedBox(height: 12),
+            _buildDialogLabel('Email'),
+            TextField(
+              controller: _emailController,
+              decoration: _dialogInputDecoration(),
+            ),
+            const SizedBox(height: 12),
+            _buildDialogLabel('Phone'),
+            TextField(
+              controller: _phoneController,
+              decoration: _dialogInputDecoration(),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFFF1F5F9),
+                    foregroundColor: const Color(0xFF334155),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  onPressed: _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Save'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _submit() {
+    final String name = _nameController.text.trim();
+    final String email = _emailController.text.trim();
+    final String phone = _phoneController.text.trim();
+
+    if (name.isEmpty || email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Name and email are required')),
+      );
+      return;
+    }
+
+    Navigator.of(context).pop(
+      _EditAttendeeSubmission(
+        name: name,
+        email: email,
+        phone: phone,
+      ),
+    );
+  }
+
+  InputDecoration _dialogInputDecoration() {
+    return InputDecoration(
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFFFF6A00)),
+      ),
+    );
+  }
+
+  Widget _buildDialogLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF334155),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _EditAttendeeSubmission {
+  final String name;
+  final String email;
+  final String phone;
+
+  const _EditAttendeeSubmission({
+    required this.name,
+    required this.email,
+    required this.phone,
+  });
+}
+
+class _TransferAttendeeSubmission {
+  final String newName;
+  final String newEmail;
+
+  const _TransferAttendeeSubmission({
+    required this.newName,
+    required this.newEmail,
+  });
+}
+
+class _TransferTicketDialog extends StatefulWidget {
+  const _TransferTicketDialog();
+
+  @override
+  State<_TransferTicketDialog> createState() => _TransferTicketDialogState();
+}
+
+class _TransferTicketDialogState extends State<_TransferTicketDialog> {
+  static const Color _orange = Color(0xFFFF6A00);
+
+  final TextEditingController _ownerNameController = TextEditingController();
+  final TextEditingController _ownerEmailController = TextEditingController();
+
+  @override
+  void dispose() {
+    _ownerNameController.dispose();
+    _ownerEmailController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 540),
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Transfer Ticket',
+                    style: TextStyle(
+                      color: Color(0xFF1E293B),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 30,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close, color: Color(0xFF94A3B8)),
+                ),
+              ],
+            ),
+            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            const SizedBox(height: 14),
+            const Text(
+              'Transfer this ticket to a new attendee.',
+              style: TextStyle(
+                color: Color(0xFF64748B),
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _buildDialogLabel('New Owner Name'),
+            TextField(
+              controller: _ownerNameController,
+              decoration: _dialogInputDecoration(),
+            ),
+            const SizedBox(height: 12),
+            _buildDialogLabel('New Owner Email'),
+            TextField(
+              controller: _ownerEmailController,
+              decoration: _dialogInputDecoration(),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFFF8FAFC),
+                    foregroundColor: const Color(0xFF475569),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  onPressed: _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Transfer'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _submit() {
+    final String newName = _ownerNameController.text.trim();
+    final String newEmail = _ownerEmailController.text.trim();
+
+    if (newName.isEmpty || newEmail.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter new owner name and email')),
+      );
+      return;
+    }
+
+    Navigator.of(context).pop(
+      _TransferAttendeeSubmission(
+        newName: newName,
+        newEmail: newEmail,
+      ),
+    );
+  }
+
+  InputDecoration _dialogInputDecoration() {
+    return InputDecoration(
+      isDense: true,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFFFF6A00)),
+      ),
+    );
+  }
+
+  Widget _buildDialogLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF334155),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _AttendeeNoteDialog extends StatefulWidget {
+  const _AttendeeNoteDialog({
+    required this.attendeeName,
+    required this.initialNote,
+  });
+
+  final String attendeeName;
+  final String? initialNote;
+
+  @override
+  State<_AttendeeNoteDialog> createState() => _AttendeeNoteDialogState();
+}
+
+class _AttendeeNoteDialogState extends State<_AttendeeNoteDialog> {
+  static const Color _orange = Color(0xFFFF6A00);
+
+  late final TextEditingController _noteController;
+
+  @override
+  void initState() {
+    super.initState();
+    _noteController = TextEditingController(text: widget.initialNote ?? '');
+  }
+
+  @override
+  void dispose() {
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 540),
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Note for ${widget.attendeeName}',
+                    style: const TextStyle(
+                      color: Color(0xFF1E293B),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 30,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close, color: Color(0xFF94A3B8)),
+                ),
+              ],
+            ),
+            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _noteController,
+              maxLines: 5,
+              decoration: InputDecoration(
+                hintText: 'Add a note...',
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: _orange),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFFF8FAFC),
+                    foregroundColor: const Color(0xFF475569),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+                const SizedBox(width: 10),
+                ElevatedButton(
+                  onPressed: _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text('Save'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _submit() {
+    final String note = _noteController.text.trim();
+    if (note.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add a note')),
+      );
+      return;
+    }
+
+    Navigator.of(context).pop(note);
   }
 }

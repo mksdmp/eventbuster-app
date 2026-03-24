@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  static const String _loginUrl = 'http://localhost:5000/api/auth/login';
+  static const String _loginUrl = 'https://eventbuster.com/api/auth/login';
   static const String tokenKey = 'auth_token';
   static const String userKey = 'auth_user';
 
@@ -53,5 +53,27 @@ class AuthService {
   Future<String?> getToken() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     return prefs.getString(tokenKey);
+  }
+
+  Future<Map<String, dynamic>?> getUser() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? userJson = prefs.getString(userKey);
+
+    if (userJson == null || userJson.isEmpty) {
+      return null;
+    }
+
+    final dynamic decoded = jsonDecode(userJson);
+    if (decoded is Map<String, dynamic>) {
+      return decoded;
+    }
+
+    return null;
+  }
+
+  Future<void> signOut() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove(tokenKey);
+    await prefs.remove(userKey);
   }
 }
