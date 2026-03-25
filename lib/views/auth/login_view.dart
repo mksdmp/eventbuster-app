@@ -14,8 +14,36 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   final AuthController controller = AuthController();
+  String? _emailError;
+  String? _passwordError;
+  String? _captchaError;
+
+  bool _validateFields() {
+    final String email = controller.emailController.text.trim();
+    final String password = controller.passwordController.text;
+    final String captchaAnswer = controller.humanCheckController.text.trim();
+
+    setState(() {
+      _emailError = email.isEmpty ? 'Email is required' : null;
+      _passwordError = password.isEmpty ? 'Password is required' : null;
+
+      if (captchaAnswer.isEmpty) {
+        _captchaError = 'Captcha answer is required';
+      } else if (!controller.isCaptchaAnswerValid(captchaAnswer)) {
+        _captchaError = 'Wrong human check answer';
+      } else {
+        _captchaError = null;
+      }
+    });
+
+    return _emailError == null && _passwordError == null && _captchaError == null;
+  }
 
   Future<void> handleLogin() async {
+    if (!_validateFields()) {
+      return;
+    }
+
     setState(() {
       controller.isLoading = true;
     });
@@ -59,8 +87,8 @@ class _LoginViewState extends State<LoginView> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    height: 110,
-                    width: 180,
+                    height: 130,
+                    width: 210,
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -108,12 +136,28 @@ class _LoginViewState extends State<LoginView> {
                         CustomTextField(
                           controller: controller.emailController,
                           hint: 'Enter your email',
+                          errorText: _emailError,
+                          onChanged: (_) {
+                            if (_emailError != null) {
+                              setState(() {
+                                _emailError = null;
+                              });
+                            }
+                          },
                         ),
                         const SizedBox(height: 15),
                         CustomTextField(
                           controller: controller.passwordController,
                           hint: 'Enter your password',
                           isPassword: true,
+                          errorText: _passwordError,
+                          onChanged: (_) {
+                            if (_passwordError != null) {
+                              setState(() {
+                                _passwordError = null;
+                              });
+                            }
+                          },
                         ),
                         const SizedBox(height: 10),
                         const Align(
@@ -137,7 +181,10 @@ class _LoginViewState extends State<LoginView> {
                             ),
                             IconButton(
                               onPressed: () {
-                                setState(controller.refreshCaptcha);
+                                setState(() {
+                                  controller.refreshCaptcha();
+                                  _captchaError = null;
+                                });
                               },
                               icon: const Icon(Icons.refresh, size: 20),
                               tooltip: 'Refresh captcha',
@@ -149,6 +196,14 @@ class _LoginViewState extends State<LoginView> {
                         CustomTextField(
                           controller: controller.humanCheckController,
                           hint: 'Enter answer',
+                          errorText: _captchaError,
+                          onChanged: (_) {
+                            if (_captchaError != null) {
+                              setState(() {
+                                _captchaError = null;
+                              });
+                            }
+                          },
                         ),
                         const SizedBox(height: 24),
                         CustomButton(

@@ -21,23 +21,14 @@ class AuthController {
   int _captchaSecond = 0;
 
   String get captchaQuestion => 'Captcha: What is $_captchaFirst + $_captchaSecond?';
+  bool isCaptchaAnswerValid(String value) =>
+      int.tryParse(value.trim()) == _captchaFirst + _captchaSecond;
 
   Future<String?> login() async {
-    if (emailController.text.isEmpty) {
-      return 'Email required';
-    }
-    if (passwordController.text.isEmpty) {
-      return 'Password required';
-    }
-    final int? captchaAnswer = int.tryParse(humanCheckController.text.trim());
-    if (captchaAnswer != _captchaFirst + _captchaSecond) {
-      return 'Wrong human check answer';
-    }
-
     isLoading = true;
 
     final bool success = await _authService.login(
-      emailController.text,
+      emailController.text.trim(),
       passwordController.text,
     );
 

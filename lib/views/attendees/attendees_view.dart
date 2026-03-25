@@ -904,15 +904,6 @@ class _AttendeesViewState extends State<AttendeesView> {
   }
 
   List<PopupMenuEntry<String>> _buildAttendeeMenuItems(AttendeeTicket attendee) {
-    if (_isRefundedTicket(attendee)) {
-      return <PopupMenuEntry<String>>[
-        const PopupMenuItem<String>(
-          value: 'Add Attendee Note',
-          child: Text('Add Attendee Note'),
-        ),
-      ];
-    }
-
     return <PopupMenuEntry<String>>[
       PopupMenuItem<String>(
         value: _isCheckedInTicket(attendee) ? 'Undo Check In' : 'Check In',
@@ -928,18 +919,18 @@ class _AttendeesViewState extends State<AttendeesView> {
         value: 'Edit Attendee info',
         child: Text('Edit Attendee info'),
       ),
-      const PopupMenuItem<String>(
-        value: 'Refund Ticket',
-        child: Text('Refund Ticket'),
-      ),
-      const PopupMenuItem<String>(
-        value: 'Transfer Ticket',
-        child: Text('Transfer Ticket'),
-      ),
-      const PopupMenuItem<String>(
-        value: 'Add Attendee Note',
-        child: Text('Add Attendee Note'),
-      ),
+      // const PopupMenuItem<String>(
+      //   value: 'Refund Ticket',
+      //   child: Text('Refund Ticket'),
+      // ),
+      // const PopupMenuItem<String>(
+      //   value: 'Transfer Ticket',
+      //   child: Text('Transfer Ticket'),
+      // ),
+      // const PopupMenuItem<String>(
+      //   value: 'Add Attendee Note',
+      //   child: Text('Add Attendee Note'),
+      // ),
     ];
   }
 
@@ -958,18 +949,18 @@ class _AttendeesViewState extends State<AttendeesView> {
       await _openEditAttendeeDialog(attendee);
       return;
     }
-    if (value == 'Refund Ticket') {
-      await _openRefundTicketDialog(attendee);
-      return;
-    }
-    if (value == 'Transfer Ticket') {
-      await _openTransferTicketDialog(attendee);
-      return;
-    }
-    if (value == 'Add Attendee Note') {
-      await _openAttendeeNoteDialog(attendee);
-      return;
-    }
+    // if (value == 'Refund Ticket') {
+    //   await _openRefundTicketDialog(attendee);
+    //   return;
+    // }
+    // if (value == 'Transfer Ticket') {
+    //   await _openTransferTicketDialog(attendee);
+    //   return;
+    // }
+    // if (value == 'Add Attendee Note') {
+    //   await _openAttendeeNoteDialog(attendee);
+    //   return;
+    // }
     _showPlaceholderAction(context, value);
   }
 
@@ -1248,9 +1239,9 @@ class _AttendeesViewState extends State<AttendeesView> {
                     TextButton(
                       onPressed: () => Navigator.of(dialogContext).pop(),
                       style: TextButton.styleFrom(
-                        backgroundColor: const Color(0xFFF8FAFC),
-                        foregroundColor: const Color(0xFF475569),
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        backgroundColor: _orange,
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: _orange),
                         padding: const EdgeInsets.symmetric(
                           horizontal: 22,
                           vertical: 12,
@@ -1267,7 +1258,7 @@ class _AttendeesViewState extends State<AttendeesView> {
                         Navigator.of(dialogContext).pop(true);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFEF4444),
+                        backgroundColor: _orange,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 20,
@@ -1823,8 +1814,8 @@ class _AddAttendeeDialogState extends State<_AddAttendeeDialog> {
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     style: TextButton.styleFrom(
-                      backgroundColor: const Color(0xFFF1F5F9),
-                      foregroundColor: const Color(0xFF334155),
+                      backgroundColor: _orange,
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 20,
                         vertical: 12,
@@ -2041,8 +2032,8 @@ class _EditAttendeeDialogState extends State<_EditAttendeeDialog> {
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   style: TextButton.styleFrom(
-                    backgroundColor: const Color(0xFFF1F5F9),
-                    foregroundColor: const Color(0xFF334155),
+                    backgroundColor: _orange,
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 12,
@@ -2235,9 +2226,9 @@ class _TransferTicketDialogState extends State<_TransferTicketDialog> {
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   style: TextButton.styleFrom(
-                    backgroundColor: const Color(0xFFF8FAFC),
-                    foregroundColor: const Color(0xFF475569),
-                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    backgroundColor: _orange,
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: _orange),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 22,
                       vertical: 12,
@@ -2420,9 +2411,9 @@ class _AttendeeNoteDialogState extends State<_AttendeeNoteDialog> {
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   style: TextButton.styleFrom(
-                    backgroundColor: const Color(0xFFF8FAFC),
-                    foregroundColor: const Color(0xFF475569),
-                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    backgroundColor: _orange,
+                    foregroundColor: Colors.white,
+                    side: const BorderSide(color: _orange),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 22,
                       vertical: 12,

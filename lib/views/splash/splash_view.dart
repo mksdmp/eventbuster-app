@@ -1,8 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 
 import '../../app/routes.dart';
+import '../../services/auth_service.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -12,15 +11,27 @@ class SplashView extends StatefulWidget {
 }
 
 class _SplashViewState extends State<SplashView> {
+  final AuthService _authService = AuthService();
+
   @override
   void initState() {
     super.initState();
-    Timer(const Duration(seconds: 2), () {
-      if (!mounted) {
-        return;
-      }
-      Navigator.pushReplacementNamed(context, Routes.login);
-    });
+    _navigateFromSplash();
+  }
+
+  Future<void> _navigateFromSplash() async {
+    await Future<void>.delayed(const Duration(seconds: 2));
+
+    final String? token = await _authService.getToken();
+
+    if (!mounted) {
+      return;
+    }
+
+    Navigator.pushReplacementNamed(
+      context,
+      token != null && token.trim().isNotEmpty ? Routes.attendees : Routes.login,
+    );
   }
 
   @override
@@ -30,8 +41,8 @@ class _SplashViewState extends State<SplashView> {
       body: Center(
         child: Image.asset(
           'assets/images/logo.jpeg',
-          width: 160,
-          height: 160,
+          width: 190,
+          height: 190,
           errorBuilder: (context, error, stackTrace) {
             return const Icon(
               Icons.image_not_supported_rounded,
