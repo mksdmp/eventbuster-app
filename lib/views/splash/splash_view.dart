@@ -41,8 +41,8 @@ class _SplashViewState extends State<SplashView> {
       body: Center(
         child: Image.asset(
           'assets/images/logo.jpeg',
-          width: 190,
-          height: 190,
+          width: 220,
+          height: 220,
           errorBuilder: (context, error, stackTrace) {
             return const Icon(
               Icons.image_not_supported_rounded,
