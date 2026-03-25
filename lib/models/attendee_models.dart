@@ -92,11 +92,35 @@ class AttendeesPagination {
   });
 
   factory AttendeesPagination.fromJson(Map<String, dynamic> json) {
+    final int page = _readInt(
+      json,
+      <String>['page', 'currentPage', 'current_page'],
+      fallback: 1,
+    );
+    final int limit = _readInt(
+      json,
+      <String>['limit', 'perPage', 'per_page', 'pageSize', 'page_size'],
+      fallback: 20,
+    );
+    final int total = _readInt(
+      json,
+      <String>['total', 'count', 'totalCount', 'total_count'],
+      fallback: 0,
+    );
+    final int parsedPages = _readInt(
+      json,
+      <String>['pages', 'totalPages', 'total_pages', 'pageCount', 'page_count'],
+      fallback: 0,
+    );
+    final int derivedPages = total > 0 && limit > 0 ? (total / limit).ceil() : 1;
+
     return AttendeesPagination(
-      page: _readInt(json, <String>['page'], fallback: 1),
-      limit: _readInt(json, <String>['limit'], fallback: 20),
-      total: _readInt(json, <String>['total'], fallback: 0),
-      pages: _readInt(json, <String>['pages'], fallback: 1),
+      page: page < 1 ? 1 : page,
+      limit: limit < 1 ? 20 : limit,
+      total: total < 0 ? 0 : total,
+      pages: parsedPages > 0
+          ? parsedPages
+          : (derivedPages > 0 ? derivedPages : 1),
     );
   }
 }

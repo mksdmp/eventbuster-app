@@ -30,7 +30,7 @@ class _SplashViewState extends State<SplashView> {
 
     Navigator.pushReplacementNamed(
       context,
-      token != null && token.trim().isNotEmpty ? Routes.attendees : Routes.login,
+      token != null && token.trim().isNotEmpty ? Routes.dashboard : Routes.login,
     );
   }
 

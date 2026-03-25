@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
 
-import '../../app/routes.dart';
 import '../../models/attendee_models.dart';
+import '../../models/event_models.dart';
 import '../../services/auth_service.dart';
 import '../../services/attendees_service.dart';
 
 class AttendeesView extends StatefulWidget {
-  const AttendeesView({super.key});
+  const AttendeesView({
+    super.key,
+    this.selectedEvent,
+    this.onOpenHome,
+    this.onOpenScanQr,
+  });
+
+  final OrganizerEventSummary? selectedEvent;
+  final VoidCallback? onOpenHome;
+  final VoidCallback? onOpenScanQr;
 
   @override
   State<AttendeesView> createState() => _AttendeesViewState();
@@ -14,7 +23,6 @@ class AttendeesView extends StatefulWidget {
 
 class _AttendeesViewState extends State<AttendeesView> {
   static const Color _orange = Color(0xFFFF6A00);
-  static const String _eventId = '69b78c891ab12ddc76e7ac86'; // 69ba09b45dddb1d64f796d77
 
   final AttendeesService _service = AttendeesService();
   final AuthService _authService = AuthService();
@@ -32,16 +40,23 @@ class _AttendeesViewState extends State<AttendeesView> {
   String _selectedStatus = 'All Status';
   String _selectedTicketType = 'All Ticket Types';
   String? _expandedOrderId;
-  String _organizerName = 'Organizer';
 
   @override
   void initState() {
     super.initState();
-    _loadOrganizer();
     _loadAttendees();
     _searchController.addListener(() {
       setState(() {});
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant AttendeesView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedEvent?.id != widget.selectedEvent?.id) {
+      _resetViewState();
+      _loadAttendees();
+    }
   }
 
   @override
@@ -50,7 +65,33 @@ class _AttendeesViewState extends State<AttendeesView> {
     super.dispose();
   }
 
+  void _resetViewState() {
+    _orders = <AttendeeOrder>[];
+    _error = null;
+    _expandedOrderId = null;
+    _selectedStatus = 'All Status';
+    _selectedTicketType = 'All Ticket Types';
+    _pagination = const AttendeesPagination(
+      page: 1,
+      limit: 20,
+      total: 0,
+      pages: 1,
+    );
+  }
+
   Future<void> _loadAttendees() async {
+    if (widget.selectedEvent == null) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _resetViewState();
+        _isLoading = false;
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _error = null;
@@ -65,7 +106,7 @@ class _AttendeesViewState extends State<AttendeesView> {
       final AttendeesPayload payload = await _service.fetchAttendees(
         page: _pagination.page,
         limit: _pagination.limit,
-        eventId: _eventId,
+        eventId: widget.selectedEvent!.id,
         token: token,
       );
 
@@ -89,194 +130,157 @@ class _AttendeesViewState extends State<AttendeesView> {
     }
   }
 
-  Future<void> _loadOrganizer() async {
-    final Map<String, dynamic>? user = await _authService.getUser();
-    if (!mounted || user == null) {
-      return;
-    }
-
-    setState(() {
-      _organizerName = _resolveOrganizerName(user);
-    });
-  }
-
-  Future<void> _handleProfileMenuSelection(String value) async {
-    if (value != 'sign_out') {
-      return;
-    }
-
-    await _authService.signOut();
-
-    if (!mounted) {
-      return;
-    }
-
-    Navigator.pushNamedAndRemoveUntil(
-      context,
-      Routes.login,
-      (Route<dynamic> route) => false,
-    );
-  }
-
-  String _resolveOrganizerName(Map<String, dynamic> user) {
-    final String fullName = _readUserValue(user, <String>[
-      'organizerName',
-      'organizer_name',
-      'name',
-      'fullName',
-      'full_name',
-      'displayName',
-      'display_name',
-    ]);
-    if (fullName.isNotEmpty) {
-      return fullName;
-    }
-
-    final String firstName = _readUserValue(user, <String>[
-      'firstName',
-      'first_name',
-    ]);
-    final String lastName = _readUserValue(user, <String>[
-      'lastName',
-      'last_name',
-    ]);
-    final String combinedName = '$firstName $lastName'.trim();
-    if (combinedName.isNotEmpty) {
-      return combinedName;
-    }
-
-    final String email = _readUserValue(user, <String>['email']);
-    if (email.isNotEmpty) {
-      return email;
-    }
-
-    return 'Organizer';
-  }
-
-  String _readUserValue(Map<String, dynamic> user, List<String> keys) {
-    for (final String key in keys) {
-      final String value = (user[key] ?? '').toString().trim();
-      if (value.isNotEmpty) {
-        return value;
-      }
-    }
-    return '';
-  }
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF4F5F7),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
-        title: Image.asset(
-          'assets/images/logo.jpeg',
-          height: 36,
-          fit: BoxFit.contain,
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: PopupMenuButton<String>(
-              offset: const Offset(0, 44),
-              color: Colors.white,
-              surfaceTintColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              onSelected: _handleProfileMenuSelection,
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                PopupMenuItem<String>(
-                  value: '__profile_header__',
-                  enabled: false,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  child: Text(
-                    _organizerName,
-                    style: const TextStyle(
-                      color: Color(0xFF111827),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const PopupMenuDivider(height: 1),
-                const PopupMenuItem<String>(
-                  value: 'sign_out',
-                  child: Row(
-                    children: [
-                      Icon(Icons.logout_rounded, size: 18, color: Color(0xFFB91C1C)),
-                      SizedBox(width: 10),
-                      Text(
-                        'Sign out',
-                        style: TextStyle(
-                          color: Color(0xFFB91C1C),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              child: CircleAvatar(
-                radius: 16,
-                backgroundColor: _orange,
-                child: Text(
-                  _organizerName.isNotEmpty
-                      ? _organizerName.substring(0, 1).toUpperCase()
-                      : 'O',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
+    return Container(
+      color: const Color(0xFFF4F5F7),
+      child: widget.selectedEvent == null
+          ? ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                const Text(
+                  'Attendees',
+                  style: TextStyle(
+                    color: _orange,
+                    fontSize: 40,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Manage and track event attendees',
+                  style: TextStyle(color: Color(0xFF4B5563), fontSize: 16),
+                ),
+                const SizedBox(height: 16),
+                _buildNoEventSelected(),
+              ],
+            )
+          : RefreshIndicator(
+              onRefresh: _loadAttendees,
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                  const Text(
+                    'Attendees',
+                    style: TextStyle(
+                      color: _orange,
+                      fontSize: 40,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Manage and track event attendees',
+                    style: TextStyle(color: Color(0xFF4B5563), fontSize: 16),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSelectedEventBanner(widget.selectedEvent!),
+                  const SizedBox(height: 14),
+                  _buildToolbar(context),
+                  const SizedBox(height: 14),
+                  _buildFilters(),
+                  const SizedBox(height: 14),
+                  if (_isLoading)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(
+                        child: CircularProgressIndicator(color: _orange),
+                      ),
+                    )
+                  else if (_error != null)
+                    _buildError()
+                  else ...[
+                    ..._buildOrderCards(),
+                    const SizedBox(height: 10),
+                    _buildPagination(),
+                  ],
+                ],
               ),
+            ),
+    );
+  }
+
+  Widget _buildNoEventSelected() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFD7DCE2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'No event selected',
+            style: TextStyle(
+              color: Color(0xFF1E293B),
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
             ),
           ),
+          const SizedBox(height: 8),
+          const Text(
+            'Open Home and choose an event first. If you tap the attendee tab after events load, the first event will be selected automatically.',
+            style: TextStyle(color: Color(0xFF475569)),
+          ),
+          if (widget.onOpenHome != null) ...[
+            const SizedBox(height: 14),
+            ElevatedButton(
+              onPressed: widget.onOpenHome,
+              child: const Text('Go to Home'),
+            ),
+          ],
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadAttendees,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            const Text(
-              'Attendees',
-              style: TextStyle(
-                color: _orange,
-                fontSize: 40,
-                fontWeight: FontWeight.w700,
-              ),
+    );
+  }
+
+  Widget _buildSelectedEventBanner(OrganizerEventSummary event) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFD7DCE2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Selected Event',
+            style: TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Manage and track event attendees',
-              style: TextStyle(color: Color(0xFF4B5563), fontSize: 16),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            event.title,
+            style: const TextStyle(
+              color: _orange,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
             ),
-            const SizedBox(height: 16),
-            _buildToolbar(context),
-            const SizedBox(height: 14),
-            _buildFilters(),
-            const SizedBox(height: 14),
-            if (_isLoading)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator(color: _orange)),
-              )
-            else if (_error != null)
-              _buildError()
-            else ...[
-              ..._buildOrderCards(),
-              const SizedBox(height: 10),
-              _buildPagination(),
-            ],
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            event.venueLine,
+            style: const TextStyle(color: Color(0xFF334155)),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildPagination() {
+    final bool hasPreviousPage = _pagination.page > 1 && !_isLoading;
+    final bool hasNextByPages = _pagination.page < _pagination.pages;
+    final bool hasNextByTotal = _pagination.limit > 0 &&
+        (_pagination.page * _pagination.limit) < _pagination.total;
+    final bool hasNextPage = (hasNextByPages || hasNextByTotal) && !_isLoading;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
@@ -287,30 +291,36 @@ class _AttendeesViewState extends State<AttendeesView> {
       child: Row(
         children: [
           Text(
-            'Page ${_pagination.page} of ${_pagination.pages} · Total ${_pagination.total}',
+            'Page ${_pagination.page} of ${_pagination.pages}',
             style: const TextStyle(color: Color(0xFF475569)),
           ),
           const Spacer(),
           OutlinedButton(
-            onPressed: _pagination.page > 1 && !_isLoading
+            onPressed: hasPreviousPage
                 ? () {
                     _changePage(_pagination.page - 1);
                   }
                 : null,
-            child: const Text('Previous'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(44, 44),
+              padding: EdgeInsets.zero,
+            ),
+            child: const Icon(Icons.chevron_left_rounded),
           ),
           const SizedBox(width: 8),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: _orange),
-            onPressed: _pagination.page < _pagination.pages && !_isLoading
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _orange,
+              minimumSize: const Size(44, 44),
+              padding: EdgeInsets.zero,
+              shape: const CircleBorder(),
+            ),
+            onPressed: hasNextPage
                 ? () {
                     _changePage(_pagination.page + 1);
                   }
                 : null,
-            child: const Text(
-              'Next',
-              style: TextStyle(color: Colors.white),
-            ),
+            child: const Icon(Icons.chevron_right_rounded, color: Colors.white),
           ),
         ],
       ),
@@ -346,7 +356,7 @@ class _AttendeesViewState extends State<AttendeesView> {
           icon: Icons.qr_code_scanner,
           filled: true,
           red: true,
-          onTap: _openScanQrDialog,
+          onTap: widget.onOpenScanQr ?? _openScanQrDialog,
         ),
       ],
     );
@@ -1078,7 +1088,10 @@ class _AttendeesViewState extends State<AttendeesView> {
       context: context,
       barrierDismissible: true,
       barrierColor: Colors.black45,
-      builder: (BuildContext dialogContext) => _AddAttendeeDialog(events: events),
+      builder: (BuildContext dialogContext) => _AddAttendeeDialog(
+        events: events,
+        initialEventId: widget.selectedEvent?.id,
+      ),
     );
 
     if (submission == null) {
@@ -1628,9 +1641,11 @@ class _FilteredOrderResult {
 class _AddAttendeeDialog extends StatefulWidget {
   const _AddAttendeeDialog({
     required this.events,
+    this.initialEventId,
   });
 
   final List<OrganizerEventOption> events;
+  final String? initialEventId;
 
   @override
   State<_AddAttendeeDialog> createState() => _AddAttendeeDialogState();
@@ -1651,7 +1666,11 @@ class _AddAttendeeDialogState extends State<_AddAttendeeDialog> {
   @override
   void initState() {
     super.initState();
-    _selectedEventId = widget.events.first.id;
+    _selectedEventId = widget.events.any(
+          (OrganizerEventOption event) => event.id == widget.initialEventId,
+        )
+        ? widget.initialEventId!
+        : widget.events.first.id;
   }
 
   @override

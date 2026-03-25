@@ -59,7 +59,7 @@ class _LoginViewState extends State<LoginView> {
     });
 
     if (result == null) {
-      Navigator.pushReplacementNamed(context, Routes.attendees);
+      Navigator.pushReplacementNamed(context, Routes.dashboard);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result)),

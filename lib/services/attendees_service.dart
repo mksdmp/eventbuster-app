@@ -24,6 +24,7 @@ class AttendeesService {
       headers: <String, String>{
         'accept': 'application/json',
         'authorization': 'Bearer $token',
+        'cookie': 'lmt_token=$token',
       },
     );
 
@@ -51,6 +52,7 @@ class AttendeesService {
       headers: <String, String>{
         'accept': 'application/json',
         'authorization': 'Bearer $token',
+        'cookie': 'lmt_token=$token',
         'content-type': 'application/json',
       },
       body: jsonEncode(<String, dynamic>{
@@ -76,6 +78,7 @@ class AttendeesService {
       headers: <String, String>{
         'accept': 'application/json',
         'authorization': 'Bearer $token',
+        'cookie': 'lmt_token=$token',
       },
     );
 

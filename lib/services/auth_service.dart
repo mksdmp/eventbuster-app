@@ -7,6 +7,7 @@ class AuthService {
   static const String _loginUrl = 'https://eventbuster.com/api/auth/login';
   static const String tokenKey = 'auth_token';
   static const String userKey = 'auth_user';
+  static const String selectedEventIdKey = 'selected_event_id';
 
   Future<bool> login(String email, String password) async {
     final http.Response response = await http.post(
@@ -71,9 +72,25 @@ class AuthService {
     return null;
   }
 
+  Future<String?> getSelectedEventId() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(selectedEventIdKey);
+  }
+
+  Future<void> setSelectedEventId(String eventId) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString(selectedEventIdKey, eventId);
+  }
+
+  Future<void> clearSelectedEventId() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.remove(selectedEventIdKey);
+  }
+
   Future<void> signOut() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.remove(tokenKey);
     await prefs.remove(userKey);
+    await prefs.remove(selectedEventIdKey);
   }
 }
