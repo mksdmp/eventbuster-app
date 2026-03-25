@@ -14,7 +14,7 @@ class AttendeesView extends StatefulWidget {
 
 class _AttendeesViewState extends State<AttendeesView> {
   static const Color _orange = Color(0xFFFF6A00);
-  static const String _eventId = '69ba09b45dddb1d64f796d77'; // 69b78c891ab12ddc76e7ac86
+  static const String _eventId = '69b78c891ab12ddc76e7ac86'; // 69ba09b45dddb1d64f796d77
 
   final AttendeesService _service = AttendeesService();
   final AuthService _authService = AuthService();
