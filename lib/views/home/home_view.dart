@@ -24,8 +24,6 @@ class HomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final OrganizerEventSummary? selectedEvent = _resolveSelectedEvent();
-
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
@@ -54,147 +52,8 @@ class HomeView extends StatelessWidget {
             _buildErrorCard()
           else if (events.isEmpty)
             _buildEmptyCard()
-          else ...[
-            _buildOverviewCard(selectedEvent),
-            const SizedBox(height: 18),
+          else
             ...events.map(_buildEventCard),
-          ],
-        ],
-      ),
-    );
-  }
-
-  OrganizerEventSummary? _resolveSelectedEvent() {
-    for (final OrganizerEventSummary event in events) {
-      if (event.id == selectedEventId) {
-        return event;
-      }
-    }
-    return events.isNotEmpty ? events.first : null;
-  }
-
-  Widget _buildOverviewCard(OrganizerEventSummary? selectedEvent) {
-    final int totalSold = events.fold<int>(
-      0,
-      (int sum, OrganizerEventSummary event) => sum + event.soldCount,
-    );
-    final int totalRemaining = events.fold<int>(
-      0,
-      (int sum, OrganizerEventSummary event) => sum + event.remainingCount,
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: <Color>[Color(0xFFFFF3EA), Color(0xFFFFDFC7)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(
-            color: Color(0x14000000),
-            blurRadius: 22,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.75),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: const Text(
-                        'Events Overview',
-                        style: TextStyle(
-                          color: _orange,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.3,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      selectedEvent == null
-                          ? 'Pick an event to start managing attendees.'
-                          : selectedEvent.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF111827),
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        height: 1.15,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      selectedEvent == null
-                          ? 'Your events will appear here.'
-                          : '${_formatFriendlyDate(selectedEvent.startDate, selectedEvent.rawDate)} • ${selectedEvent.venueLine}',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF475569),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF111827),
-                  borderRadius: BorderRadius.circular(18),
-                ),
-                child: const Icon(
-                  Icons.auto_awesome_rounded,
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _OverviewMetric(
-                label: 'Events',
-                value: '${events.length}',
-                icon: Icons.calendar_month_rounded,
-              ),
-              _OverviewMetric(
-                label: 'Sold',
-                value: '$totalSold',
-                icon: Icons.confirmation_number_rounded,
-              ),
-              _OverviewMetric(
-                label: 'Remaining',
-                value: '$totalRemaining',
-                icon: Icons.event_seat_rounded,
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -527,58 +386,6 @@ class HomeView extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _OverviewMetric extends StatelessWidget {
-  const _OverviewMetric({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  final String label;
-  final String value;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 108),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.78),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: HomeView._orange, size: 18),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  color: Color(0xFF111827),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Color(0xFF64748B),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }

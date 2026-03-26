@@ -13,11 +13,13 @@ class ScanQrView extends StatefulWidget {
     required this.selectedEvent,
     required this.isEventsLoading,
     required this.hasEvents,
+    required this.isActive,
   });
 
   final OrganizerEventSummary? selectedEvent;
   final bool isEventsLoading;
   final bool hasEvents;
+  final bool isActive;
 
   @override
   State<ScanQrView> createState() => _ScanQrViewState();
@@ -65,6 +67,9 @@ class _ScanQrViewState extends State<ScanQrView> {
       _lastProcessedPayload = null;
       _lastProcessedAt = null;
       _lastResolvedAttendeeId = null;
+    }
+    if (oldWidget.isActive && !widget.isActive && _torchEnabled) {
+      _torchEnabled = false;
     }
   }
 
@@ -471,6 +476,18 @@ class _ScanQrViewState extends State<ScanQrView> {
   }
 
   Widget _buildScannerPreview() {
+    if (!widget.isActive) {
+      return Container(
+        height: 280,
+        width: double.infinity,
+        decoration: BoxDecoration(
+          color: const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+      );
+    }
+
     return Column(
       children: [
         ClipRRect(

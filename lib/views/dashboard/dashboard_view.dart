@@ -6,6 +6,7 @@ import '../../services/auth_service.dart';
 import '../../services/events_service.dart';
 import '../attendees/attendees_view.dart';
 import '../home/home_view.dart';
+import '../profile/profile_view.dart';
 import '../scan/scan_qr_view.dart';
 
 class DashboardView extends StatefulWidget {
@@ -22,27 +23,51 @@ class _DashboardViewState extends State<DashboardView> {
   final EventsService _eventsService = EventsService();
 
   int _currentIndex = 0;
+  bool _isLoadingSession = true;
+  bool _showOrganizerFlow = true;
   bool _isLoadingEvents = true;
   String? _eventsError;
-  String _organizerName = 'Organizer';
+  String _displayName = 'Organizer';
+  String _displayEmail = '';
   List<OrganizerEventSummary> _events = <OrganizerEventSummary>[];
   OrganizerEventSummary? _selectedEvent;
 
   @override
   void initState() {
     super.initState();
-    _loadOrganizer();
-    _loadEvents();
+    _initializeDashboard();
   }
 
-  Future<void> _loadOrganizer() async {
+  Future<void> _initializeDashboard() async {
     final Map<String, dynamic>? user = await _authService.getUser();
-    if (!mounted || user == null) {
+    final bool showOrganizerFlow = _shouldShowOrganizerFlow(user);
+
+    if (!mounted) {
       return;
     }
 
     setState(() {
-      _organizerName = _resolveOrganizerName(user);
+      _showOrganizerFlow = showOrganizerFlow;
+      _displayName = _resolveDisplayName(
+        user,
+        fallback: showOrganizerFlow ? 'Organizer' : 'User',
+      );
+      _displayEmail = _readUserValue(user, <String>['email']);
+      _isLoadingSession = false;
+      _isLoadingEvents = showOrganizerFlow;
+    });
+
+    if (showOrganizerFlow) {
+      await _loadEvents();
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isLoadingEvents = false;
     });
   }
 
@@ -188,7 +213,7 @@ class _DashboardViewState extends State<DashboardView> {
                   enabled: false,
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   child: Text(
-                    _organizerName,
+                    _displayName,
                     style: const TextStyle(
                       color: Color(0xFF111827),
                       fontWeight: FontWeight.w600,
@@ -217,9 +242,7 @@ class _DashboardViewState extends State<DashboardView> {
                 radius: 16,
                 backgroundColor: _orange,
                 child: Text(
-                  _organizerName.isNotEmpty
-                      ? _organizerName.substring(0, 1).toUpperCase()
-                      : 'O',
+                  _displayAvatarInitial,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 13,
@@ -231,79 +254,119 @@ class _DashboardViewState extends State<DashboardView> {
           ),
         ],
       ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          HomeView(
-            events: _events,
-            isLoading: _isLoadingEvents,
-            error: _eventsError,
-            selectedEventId: _selectedEvent?.id,
-            onRefresh: _loadEvents,
-            onSelectEvent: (OrganizerEventSummary event) {
-              _selectEvent(event, switchToAttendees: true);
-            },
-          ),
-          ScanQrView(
-            selectedEvent: _selectedEvent,
-            isEventsLoading: _isLoadingEvents,
-            hasEvents: _events.isNotEmpty,
-          ),
-          AttendeesView(
-            selectedEvent: _selectedEvent,
-            onOpenHome: () {
-              _handleTabTap(0);
-            },
-            onOpenScanQr: () {
-              _handleTabTap(1);
-            },
-          ),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        backgroundColor: Colors.white,
-        indicatorColor: const Color(0xFFFFE3CF),
-        labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
-          (Set<WidgetState> states) {
-            if (states.contains(WidgetState.selected)) {
-              return const TextStyle(
-                color: _orange,
-                fontWeight: FontWeight.w700,
-              );
-            }
-            return const TextStyle(
-              color: Color(0xFF64748B),
-              fontWeight: FontWeight.w600,
-            );
-          },
-        ),
-        onDestinationSelected: (int index) {
-          _handleTabTap(index);
-        },
-        height: 70,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined, color: Color(0xFF64748B)),
-            selectedIcon: Icon(Icons.home_rounded, color: _orange),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.qr_code_scanner_outlined, color: Color(0xFF64748B)),
-            selectedIcon: Icon(Icons.qr_code_scanner_rounded, color: _orange),
-            label: 'Scan QR',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.groups_outlined, color: Color(0xFF64748B)),
-            selectedIcon: Icon(Icons.groups_rounded, color: _orange),
-            label: 'Attendee',
-          ),
-        ],
-      ),
+      body: _buildBody(),
+      bottomNavigationBar: _showOrganizerFlow ? _buildBottomNavigationBar() : null,
     );
   }
 
-  String _resolveOrganizerName(Map<String, dynamic> user) {
+  Widget _buildBody() {
+    if (_isLoadingSession) {
+      return const Center(
+        child: CircularProgressIndicator(color: _orange),
+      );
+    }
+
+    if (!_showOrganizerFlow) {
+      return ProfileView(
+        userName: _displayName,
+        userEmail: _displayEmail,
+      );
+    }
+
+    return IndexedStack(
+      index: _currentIndex,
+      children: [
+        HomeView(
+          events: _events,
+          isLoading: _isLoadingEvents,
+          error: _eventsError,
+          selectedEventId: _selectedEvent?.id,
+          onRefresh: _loadEvents,
+          onSelectEvent: (OrganizerEventSummary event) {
+            _selectEvent(event, switchToAttendees: true);
+          },
+        ),
+        ScanQrView(
+          selectedEvent: _selectedEvent,
+          isEventsLoading: _isLoadingEvents,
+          hasEvents: _events.isNotEmpty,
+          isActive: _currentIndex == 1,
+        ),
+        AttendeesView(
+          selectedEvent: _selectedEvent,
+          onOpenHome: () {
+            _handleTabTap(0);
+          },
+          onOpenScanQr: () {
+            _handleTabTap(1);
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return NavigationBar(
+      selectedIndex: _currentIndex,
+      backgroundColor: Colors.white,
+      indicatorColor: const Color(0xFFFFE3CF),
+      labelTextStyle: WidgetStateProperty.resolveWith<TextStyle?>(
+        (Set<WidgetState> states) {
+          if (states.contains(WidgetState.selected)) {
+            return const TextStyle(
+              color: _orange,
+              fontWeight: FontWeight.w700,
+            );
+          }
+          return const TextStyle(
+            color: Color(0xFF64748B),
+            fontWeight: FontWeight.w600,
+          );
+        },
+      ),
+      onDestinationSelected: (int index) {
+        _handleTabTap(index);
+      },
+      height: 70,
+      destinations: const [
+        NavigationDestination(
+          icon: Icon(Icons.home_outlined, color: Color(0xFF64748B)),
+          selectedIcon: Icon(Icons.home_rounded, color: _orange),
+          label: 'Home',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.qr_code_scanner_outlined, color: Color(0xFF64748B)),
+          selectedIcon: Icon(Icons.qr_code_scanner_rounded, color: _orange),
+          label: 'Scan QR',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.groups_outlined, color: Color(0xFF64748B)),
+          selectedIcon: Icon(Icons.groups_rounded, color: _orange),
+          label: 'Attendee',
+        ),
+      ],
+    );
+  }
+
+  String get _displayAvatarInitial {
+    final String seed = _displayName.trim().isNotEmpty
+        ? _displayName.trim()
+        : _displayEmail.trim().isNotEmpty
+            ? _displayEmail.trim()
+            : _showOrganizerFlow
+                ? 'Organizer'
+                : 'User';
+    return seed.substring(0, 1).toUpperCase();
+  }
+
+  String _resolveDisplayName(
+    Map<String, dynamic>? user, {
+    required String fallback,
+  }) {
+    if (user == null) {
+      return fallback;
+    }
+
     final String fullName = _readUserValue(user, <String>[
       'organizerName',
       'organizer_name',
@@ -329,10 +392,89 @@ class _DashboardViewState extends State<DashboardView> {
       return email;
     }
 
-    return 'Organizer';
+    return fallback;
   }
 
-  String _readUserValue(Map<String, dynamic> user, List<String> keys) {
+  bool _shouldShowOrganizerFlow(Map<String, dynamic>? user) {
+    final List<String> roles = _extractRoles(user);
+    if (roles.contains('user')) {
+      return false;
+    }
+    if (roles.contains('event_host')) {
+      return true;
+    }
+    return true;
+  }
+
+  List<String> _extractRoles(Map<String, dynamic>? user) {
+    if (user == null) {
+      return const <String>[];
+    }
+
+    final List<String> roles = <String>[];
+    void addRole(dynamic value) {
+      final String normalized = _normalizeRoleValue(value);
+      if (normalized.isNotEmpty && !roles.contains(normalized)) {
+        roles.add(normalized);
+      }
+    }
+
+    for (final String key in <String>[
+      'role',
+      'userRole',
+      'user_role',
+      'type',
+      'userType',
+      'user_type',
+      'accountType',
+      'account_type',
+    ]) {
+      final dynamic value = user[key];
+      if (value is List) {
+        for (final dynamic item in value) {
+          addRole(item);
+        }
+      } else if (value is Map<String, dynamic>) {
+        addRole(value['name']);
+        addRole(value['slug']);
+        addRole(value['code']);
+        addRole(value['value']);
+      } else {
+        addRole(value);
+      }
+    }
+
+    final dynamic rawRoles = user['roles'];
+    if (rawRoles is List) {
+      for (final dynamic item in rawRoles) {
+        if (item is Map<String, dynamic>) {
+          addRole(item['name']);
+          addRole(item['slug']);
+          addRole(item['code']);
+          addRole(item['value']);
+        } else {
+          addRole(item);
+        }
+      }
+    }
+
+    return roles;
+  }
+
+  String _normalizeRoleValue(dynamic value) {
+    final String role = (value ?? '').toString().trim().toLowerCase();
+    if (role.isEmpty) {
+      return '';
+    }
+
+    return role.replaceAll('-', '_').replaceAll(' ', '_');
+  }
+
+  String _readUserValue(Map<String, dynamic>? user, List<String> keys) {
+    if (user == null) {
+      return '';
+    }
+
     for (final String key in keys) {
       final String value = (user[key] ?? '').toString().trim();
       if (value.isNotEmpty) {
