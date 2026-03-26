@@ -121,14 +121,22 @@ class _ScanQrViewState extends State<ScanQrView> {
       final String message = payload.eventId != null
           ? 'This QR/manual code only contains event id. Check-in API requires attendee id.'
           : 'Unable to find attendee id in the scanned QR/manual code.';
-      _showMessage(message);
+      await _showResultDialog(
+        title: 'Check-In Failed',
+        message: message,
+        isSuccess: false,
+      );
       return;
     }
 
     if (widget.selectedEvent != null &&
         payload.eventId != null &&
         payload.eventId != widget.selectedEvent!.id) {
-      _showMessage('This QR code belongs to a different event.');
+      await _showResultDialog(
+        title: 'Check-In Failed',
+        message: 'This QR code belongs to a different event.',
+        isSuccess: false,
+      );
       return;
     }
 
@@ -159,9 +167,17 @@ class _ScanQrViewState extends State<ScanQrView> {
         _lastResolvedAttendeeId = attendeeId;
       });
 
-      _showMessage('Attendee checked in successfully');
+      await _showResultDialog(
+        title: 'Check-In Successful',
+        message: 'Attendee checked in successfully.',
+        isSuccess: true,
+      );
     } catch (e) {
-      _showMessage(e.toString());
+      await _showResultDialog(
+        title: 'Check-In Failed',
+        message: e.toString(),
+        isSuccess: false,
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -178,6 +194,87 @@ class _ScanQrViewState extends State<ScanQrView> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
+    );
+  }
+
+  Future<void> _showResultDialog({
+    required String title,
+    required String message,
+    required bool isSuccess,
+  }) async {
+    if (!mounted) {
+      return;
+    }
+
+    final Color accentColor = isSuccess ? const Color(0xFF16A34A) : const Color(0xFFDC2626);
+    final IconData icon = isSuccess ? Icons.check_circle_rounded : Icons.error_rounded;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: accentColor.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: accentColor, size: 34),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF111827),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF4B5563),
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: accentColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('OK'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
