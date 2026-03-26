@@ -4,6 +4,7 @@ import '../../models/attendee_models.dart';
 import '../../models/event_models.dart';
 import '../../services/auth_service.dart';
 import '../../services/attendees_service.dart';
+import '../../utils/check_in_qr_parser.dart';
 
 class AttendeesView extends StatefulWidget {
   const AttendeesView({
@@ -1049,6 +1050,65 @@ class _AttendeesViewState extends State<AttendeesView> {
     );
   }
 
+  Future<bool> _checkInFromQrPayload(String rawValue) async {
+    final ParsedCheckInQrPayload payload = CheckInQrParser.parse(rawValue);
+    final String? attendeeId = payload.attendeeId;
+
+    if (attendeeId == null || attendeeId.isEmpty) {
+      final String message = payload.eventId != null
+          ? 'This QR/manual code only contains event id. Check-in API requires attendee id.'
+          : 'Unable to find attendee id in the scanned QR/manual code.';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+      return false;
+    }
+
+    if (widget.selectedEvent != null &&
+        payload.eventId != null &&
+        payload.eventId != widget.selectedEvent!.id) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This QR code belongs to a different event.')),
+        );
+      }
+      return false;
+    }
+
+    try {
+      final String? token = await _authService.getToken();
+      if (token == null || token.isEmpty) {
+        throw Exception('No auth token found. Please sign in again.');
+      }
+
+      await _service.updateCheckInStatus(
+        attendeeId: attendeeId,
+        checkedIn: true,
+        token: token,
+      );
+
+      if (!mounted) {
+        return false;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Attendee checked in successfully')),
+      );
+
+      await _loadAttendees();
+      return true;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+      return false;
+    }
+  }
+
   Future<void> _openAddAttendeeDialog() async {
     final BuildContext pageContext = context;
 
@@ -1569,7 +1629,7 @@ class _AttendeesViewState extends State<AttendeesView> {
                       child: TextField(
                         controller: manualCodeController,
                         decoration: InputDecoration(
-                          hintText: 'Enter ticket QR code',
+                          hintText: 'Enter ticket QR code or attendee id',
                           contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12,
                             vertical: 12,
@@ -1591,7 +1651,7 @@ class _AttendeesViewState extends State<AttendeesView> {
                     ),
                     const SizedBox(width: 8),
                     ElevatedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         final String code = manualCodeController.text.trim();
                         if (code.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -1599,8 +1659,10 @@ class _AttendeesViewState extends State<AttendeesView> {
                           );
                           return;
                         }
-                        Navigator.of(dialogContext).pop();
-                        _showPlaceholderAction(context, 'Check In ($code)');
+                        final bool success = await _checkInFromQrPayload(code);
+                        if (success && mounted) {
+                          Navigator.of(context).pop();
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _orange,

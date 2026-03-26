@@ -24,6 +24,8 @@ class HomeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final OrganizerEventSummary? selectedEvent = _resolveSelectedEvent();
+
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: ListView(
@@ -33,14 +35,14 @@ class HomeView extends StatelessWidget {
             'Home',
             style: TextStyle(
               color: _orange,
-              fontSize: 32,
+              fontSize: 28,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 4),
           const Text(
             'Choose an event to manage attendees and check-ins.',
-            style: TextStyle(color: Color(0xFF4B5563), fontSize: 14),
+            style: TextStyle(color: Color(0xFF4B5563), fontSize: 13),
           ),
           const SizedBox(height: 16),
           if (isLoading)
@@ -52,8 +54,147 @@ class HomeView extends StatelessWidget {
             _buildErrorCard()
           else if (events.isEmpty)
             _buildEmptyCard()
-          else
-            _buildEventsTable(context),
+          else ...[
+            _buildOverviewCard(selectedEvent),
+            const SizedBox(height: 18),
+            ...events.map(_buildEventCard),
+          ],
+        ],
+      ),
+    );
+  }
+
+  OrganizerEventSummary? _resolveSelectedEvent() {
+    for (final OrganizerEventSummary event in events) {
+      if (event.id == selectedEventId) {
+        return event;
+      }
+    }
+    return events.isNotEmpty ? events.first : null;
+  }
+
+  Widget _buildOverviewCard(OrganizerEventSummary? selectedEvent) {
+    final int totalSold = events.fold<int>(
+      0,
+      (int sum, OrganizerEventSummary event) => sum + event.soldCount,
+    );
+    final int totalRemaining = events.fold<int>(
+      0,
+      (int sum, OrganizerEventSummary event) => sum + event.remainingCount,
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: <Color>[Color(0xFFFFF3EA), Color(0xFFFFDFC7)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 22,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.75),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text(
+                        'Events Overview',
+                        style: TextStyle(
+                          color: _orange,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      selectedEvent == null
+                          ? 'Pick an event to start managing attendees.'
+                          : selectedEvent.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF111827),
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      selectedEvent == null
+                          ? 'Your events will appear here.'
+                          : '${_formatFriendlyDate(selectedEvent.startDate, selectedEvent.rawDate)} • ${selectedEvent.venueLine}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF475569),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111827),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _OverviewMetric(
+                label: 'Events',
+                value: '${events.length}',
+                icon: Icons.calendar_month_rounded,
+              ),
+              _OverviewMetric(
+                label: 'Sold',
+                value: '$totalSold',
+                icon: Icons.confirmation_number_rounded,
+              ),
+              _OverviewMetric(
+                label: 'Remaining',
+                value: '$totalRemaining',
+                icon: Icons.event_seat_rounded,
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -64,8 +205,8 @@ class HomeView extends StatelessWidget {
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFD7DCE2)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFF0D2D2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,7 +219,10 @@ class HomeView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(error ?? 'Unknown error'),
+          Text(
+            error ?? 'Unknown error',
+            style: const TextStyle(color: Color(0xFF475569)),
+          ),
           const SizedBox(height: 12),
           ElevatedButton(
             onPressed: onRefresh,
@@ -94,180 +238,401 @@ class HomeView extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFD7DCE2)),
       ),
-      child: const Text(
-        'No events found for this organizer.',
-        style: TextStyle(
-          color: Color(0xFF475569),
-          fontWeight: FontWeight.w500,
-        ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'No events found',
+            style: TextStyle(
+              color: Color(0xFF111827),
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          SizedBox(height: 6),
+          Text(
+            'Events assigned to this organizer will appear here.',
+            style: TextStyle(
+              color: Color(0xFF475569),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildEventsTable(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        final double tableWidth = constraints.maxWidth > 860
-            ? constraints.maxWidth
-            : 860;
-
-        return Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFD7DCE2)),
-          ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: tableWidth,
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                    decoration: const BoxDecoration(
-                      border: Border(
-                        bottom: BorderSide(color: Color(0xFFE5E7EB)),
-                      ),
-                    ),
-                    child: const Row(
-                      children: [
-                        SizedBox(width: 108, child: Text('Date', style: _headerStyle)),
-                        Expanded(flex: 4, child: Text('Event', style: _headerStyle)),
-                        Expanded(child: Center(child: Text('Sold', style: _headerStyle))),
-                        Expanded(child: Center(child: Text('Remaining', style: _headerStyle))),
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: Text('Net Sales', style: _headerStyle),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  ...events.map(
-                    (OrganizerEventSummary event) => _buildEventRow(context, event),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildEventRow(BuildContext context, OrganizerEventSummary event) {
+  Widget _buildEventCard(OrganizerEventSummary event) {
     final bool isSelected = selectedEventId == event.id;
 
-    return InkWell(
-      onTap: () => onSelectEvent(event),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFF1E8) : Colors.white,
-          border: const Border(
-            bottom: BorderSide(color: Color(0xFFF1F5F9)),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(22),
+          onTap: () => onSelectEvent(event),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: isSelected ? _orange : const Color(0xFFE7EBF0),
+                width: isSelected ? 1.6 : 1,
+              ),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: isSelected
+                      ? const Color(0x22FF6A00)
+                      : const Color(0x120F172A),
+                  blurRadius: isSelected ? 28 : 18,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Container(
+                  height: 8,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isSelected
+                          ? const <Color>[Color(0xFFFF6A00), Color(0xFFFFA45B)]
+                          : const <Color>[Color(0xFFFFE3CF), Color(0xFFFFF4EA)],
+                    ),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _DateBadge(date: event.startDate),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        event.title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Color(0xFF111827),
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w700,
+                                          height: 1.15,
+                                        ),
+                                      ),
+                                    ),
+                                    if (isSelected) ...[
+                                      const SizedBox(width: 10),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFFF1E8),
+                                          borderRadius: BorderRadius.circular(999),
+                                        ),
+                                        child: const Text(
+                                          'Selected',
+                                          style: TextStyle(
+                                            color: _orange,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.location_on_outlined,
+                                      size: 16,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        event.venueLine,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Color(0xFF475569),
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.schedule_rounded,
+                                      size: 16,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        _formatFriendlyDate(event.startDate, event.rawDate),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Color(0xFF64748B),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: SizedBox(
+                          height: 156,
+                          width: double.infinity,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              _EventThumbnail(imageUrl: event.imageUrl),
+                              DecoratedBox(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: <Color>[
+                                      Colors.transparent,
+                                      Colors.black.withOpacity(0.52),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                left: 14,
+                                right: 14,
+                                bottom: 14,
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        event.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    const Icon(
+                                      Icons.arrow_forward_rounded,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          _StatChip(
+                            label: 'Sold',
+                            value: '${event.soldCount}',
+                            backgroundColor: const Color(0xFFFFF5ED),
+                            icon: Icons.trending_up_rounded,
+                          ),
+                          _StatChip(
+                            label: 'Remaining',
+                            value: '${event.remainingCount}',
+                            backgroundColor: const Color(0xFFF8FAFC),
+                            icon: Icons.confirmation_number_outlined,
+                          ),
+                          _StatChip(
+                            label: 'Net Sales',
+                            value: _formatCurrency(event.currency, event.netSales),
+                            backgroundColor: const Color(0xFFFFF1E8),
+                            icon: Icons.payments_outlined,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              isSelected
+                                  ? 'Tap to continue managing attendees.'
+                                  : 'Tap to open this event in attendees.',
+                              style: const TextStyle(
+                                color: Color(0xFF475569),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: isSelected ? _orange : const Color(0xFF111827),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(
+                              Icons.arrow_outward_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 108,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: _DateBadge(date: event.startDate),
-              ),
-            ),
-            Expanded(
-              flex: 4,
-              child: Row(
-                children: [
-                  _EventThumbnail(imageUrl: event.imageUrl),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          event.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: _orange,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          event.venueLine,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF334155),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _formatDateTime(event.startDate, event.rawDate),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Center(
-                child: Text(
-                  '${event.soldCount}',
-                  style: const TextStyle(
-                    color: Color(0xFF0F172A),
-                    fontWeight: FontWeight.w700,
-                  ),
+      ),
+    );
+  }
+}
+
+class _OverviewMetric extends StatelessWidget {
+  const _OverviewMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 108),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.78),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: HomeView._orange, size: 18),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Color(0xFF111827),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            ),
-            Expanded(
-              child: Center(
-                child: Text(
-                  '${event.remainingCount}',
-                  style: const TextStyle(
-                    color: Color(0xFF0F172A),
-                    fontWeight: FontWeight.w700,
-                  ),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-            Expanded(
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  _formatCurrency(event.currency, event.netSales),
-                  style: const TextStyle(
-                    color: Color(0xFF0F172A),
-                    fontWeight: FontWeight.w700,
-                  ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({
+    required this.label,
+    required this.value,
+    required this.backgroundColor,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final Color backgroundColor;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: HomeView._orange, size: 18),
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xFF64748B),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Color(0xFF111827),
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -299,12 +664,15 @@ class _DateBadge extends StatelessWidget {
     final String day = date == null ? '--' : '${date!.day}'.padLeft(2, '0');
 
     return Container(
-      width: 56,
-      height: 56,
+      width: 62,
+      height: 68,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        gradient: const LinearGradient(
+          colors: <Color>[Color(0xFFFFF2E6), Color(0xFFFFDFC8)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -312,17 +680,18 @@ class _DateBadge extends StatelessWidget {
           Text(
             month,
             style: const TextStyle(
-              color: Color(0xFFEF4444),
+              color: HomeView._orange,
               fontSize: 10,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             day,
             style: const TextStyle(
-              color: Color(0xFF0F172A),
-              fontSize: 18,
+              color: Color(0xFF111827),
+              fontSize: 22,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -339,53 +708,70 @@ class _EventThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: SizedBox(
-        width: 56,
-        height: 56,
-        child: imageUrl.isEmpty
-            ? Container(
-                color: const Color(0xFFFFF1E8),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.event_available_rounded,
-                  color: HomeView._orange,
-                ),
-              )
-            : Image.network(
-                imageUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
-                  return Container(
-                    color: const Color(0xFFFFF1E8),
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.image_not_supported_outlined,
-                      color: HomeView._orange,
-                    ),
-                  );
-                },
-              ),
-      ),
+    if (imageUrl.isEmpty) {
+      return Container(
+        color: const Color(0xFFFFF1E8),
+        alignment: Alignment.center,
+        child: const Icon(
+          Icons.event_available_rounded,
+          color: HomeView._orange,
+          size: 42,
+        ),
+      );
+    }
+
+    return Image.network(
+      imageUrl,
+      fit: BoxFit.cover,
+      errorBuilder: (BuildContext context, Object error, StackTrace? stackTrace) {
+        return Container(
+          color: const Color(0xFFFFF1E8),
+          alignment: Alignment.center,
+          child: const Icon(
+            Icons.image_not_supported_outlined,
+            color: HomeView._orange,
+            size: 42,
+          ),
+        );
+      },
     );
   }
 }
 
-const TextStyle _headerStyle = TextStyle(
-  color: Color(0xFF1E293B),
-  fontSize: 13,
-  fontWeight: FontWeight.w700,
-);
-
-String _formatDateTime(DateTime? date, String rawDate) {
+String _formatFriendlyDate(DateTime? date, String rawDate) {
   if (date == null) {
     return rawDate.isEmpty ? '-' : rawDate;
   }
 
-  String twoDigits(int value) => value.toString().padLeft(2, '0');
+  const List<String> weekdays = <String>[
+    'Mon',
+    'Tue',
+    'Wed',
+    'Thu',
+    'Fri',
+    'Sat',
+    'Sun',
+  ];
+  const List<String> months = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
 
-  return '${date.year}-${twoDigits(date.month)}-${twoDigits(date.day)}T${twoDigits(date.hour)}:${twoDigits(date.minute)}:${twoDigits(date.second)}';
+  final int hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+  final String minute = date.minute.toString().padLeft(2, '0');
+  final String meridiem = date.hour >= 12 ? 'PM' : 'AM';
+
+  return '${weekdays[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year} • $hour:$minute $meridiem';
 }
 
 String _formatCurrency(String currency, double amount) {
