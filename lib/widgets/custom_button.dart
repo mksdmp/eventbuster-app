@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../app/constants.dart';
+
 class CustomButton extends StatelessWidget {
   final String text;
   final VoidCallback onTap;
@@ -14,7 +16,7 @@ class CustomButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.orange,
+        backgroundColor: AppConstants.appOrange,
         foregroundColor: Colors.white,
         minimumSize: const Size(double.infinity, 50),
       ),

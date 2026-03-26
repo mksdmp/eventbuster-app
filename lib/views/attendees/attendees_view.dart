@@ -142,14 +142,14 @@ class _AttendeesViewState extends State<AttendeesView> {
                   'Attendees',
                   style: TextStyle(
                     color: _orange,
-                    fontSize: 40,
+                    fontSize: 32,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 4),
                 const Text(
                   'Manage and track event attendees',
-                  style: TextStyle(color: Color(0xFF4B5563), fontSize: 16),
+                  style: TextStyle(color: Color(0xFF4B5563), fontSize: 14),
                 ),
                 const SizedBox(height: 16),
                 _buildNoEventSelected(),
@@ -164,14 +164,14 @@ class _AttendeesViewState extends State<AttendeesView> {
                     'Attendees',
                     style: TextStyle(
                       color: _orange,
-                      fontSize: 40,
+                      fontSize: 32,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 4),
                   const Text(
                     'Manage and track event attendees',
-                    style: TextStyle(color: Color(0xFF4B5563), fontSize: 16),
+                    style: TextStyle(color: Color(0xFF4B5563), fontSize: 14),
                   ),
                   const SizedBox(height: 16),
                   _buildSelectedEventBanner(widget.selectedEvent!),
@@ -215,7 +215,7 @@ class _AttendeesViewState extends State<AttendeesView> {
             'No event selected',
             style: TextStyle(
               color: Color(0xFF1E293B),
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -260,7 +260,7 @@ class _AttendeesViewState extends State<AttendeesView> {
             event.title,
             style: const TextStyle(
               color: _orange,
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -641,7 +641,7 @@ class _AttendeesViewState extends State<AttendeesView> {
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
                                     color: _orange,
-                                    fontSize: 18,
+                                    fontSize: 16,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -671,7 +671,7 @@ class _AttendeesViewState extends State<AttendeesView> {
                           Text(
                             '${filteredOrder.attendees.length} Tickets',
                             style: const TextStyle(
-                              fontSize: 30,
+                              fontSize: 26,
                               fontWeight: FontWeight.w700,
                               color: Color(0xFF0F172A),
                             ),
@@ -681,7 +681,7 @@ class _AttendeesViewState extends State<AttendeesView> {
                             'Event: ${order.eventName} · Buyer: ${order.buyerName} · ${_formatDate(order.date)}',
                             style: const TextStyle(
                               color: Color(0xFF64748B),
-                              fontSize: 16,
+                              fontSize: 14,
                             ),
                           ),
                         ],
@@ -1225,7 +1225,7 @@ class _AttendeesViewState extends State<AttendeesView> {
                         style: TextStyle(
                           color: Color(0xFF1E293B),
                           fontWeight: FontWeight.w700,
-                          fontSize: 30,
+                          fontSize: 24,
                         ),
                       ),
                     ),
@@ -1241,7 +1241,7 @@ class _AttendeesViewState extends State<AttendeesView> {
                   'Are you sure you want to refund this ticket for ${attendee.name}?',
                   style: const TextStyle(
                     color: Color(0xFF475569),
-                    fontSize: 24,
+                    fontSize: 18,
                     height: 1.3,
                   ),
                 ),
@@ -1527,7 +1527,7 @@ class _AttendeesViewState extends State<AttendeesView> {
                         'Scan QR',
                         style: TextStyle(
                           color: _orange,
-                          fontSize: 30,
+                          fontSize: 24,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -1707,7 +1707,7 @@ class _AddAttendeeDialogState extends State<_AddAttendeeDialog> {
                       'Add Attendee',
                       style: TextStyle(
                         color: _orange,
-                        fontSize: 32,
+                        fontSize: 26,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -2015,7 +2015,7 @@ class _EditAttendeeDialogState extends State<_EditAttendeeDialog> {
                     style: TextStyle(
                       color: Color(0xFF1E293B),
                       fontWeight: FontWeight.w700,
-                      fontSize: 30,
+                      fontSize: 24,
                     ),
                   ),
                 ),
@@ -2207,7 +2207,7 @@ class _TransferTicketDialogState extends State<_TransferTicketDialog> {
                     style: TextStyle(
                       color: Color(0xFF1E293B),
                       fontWeight: FontWeight.w700,
-                      fontSize: 30,
+                      fontSize: 24,
                     ),
                   ),
                 ),
@@ -2223,7 +2223,7 @@ class _TransferTicketDialogState extends State<_TransferTicketDialog> {
               'Transfer this ticket to a new attendee.',
               style: TextStyle(
                 color: Color(0xFF64748B),
-                fontSize: 18,
+                fontSize: 16,
               ),
             ),
             const SizedBox(height: 12),
@@ -2388,7 +2388,7 @@ class _AttendeeNoteDialogState extends State<_AttendeeNoteDialog> {
                     style: const TextStyle(
                       color: Color(0xFF1E293B),
                       fontWeight: FontWeight.w700,
-                      fontSize: 30,
+                      fontSize: 24,
                     ),
                   ),
                 ),

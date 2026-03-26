@@ -37,14 +37,14 @@ class _ScanQrViewState extends State<ScanQrView> {
           'Scan QR',
           style: TextStyle(
             color: _orange,
-            fontSize: 40,
+            fontSize: 32,
             fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 4),
         const Text(
           'Check in attendees for the selected event.',
-          style: TextStyle(color: Color(0xFF4B5563), fontSize: 16),
+          style: TextStyle(color: Color(0xFF4B5563), fontSize: 14),
         ),
         const SizedBox(height: 16),
         if (widget.isEventsLoading)
@@ -107,7 +107,7 @@ class _ScanQrViewState extends State<ScanQrView> {
             event.title,
             style: const TextStyle(
               color: _orange,
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),

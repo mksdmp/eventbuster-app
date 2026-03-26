@@ -33,14 +33,14 @@ class HomeView extends StatelessWidget {
             'Home',
             style: TextStyle(
               color: _orange,
-              fontSize: 40,
+              fontSize: 32,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 4),
           const Text(
             'Choose an event to manage attendees and check-ins.',
-            style: TextStyle(color: Color(0xFF4B5563), fontSize: 16),
+            style: TextStyle(color: Color(0xFF4B5563), fontSize: 14),
           ),
           const SizedBox(height: 16),
           if (isLoading)

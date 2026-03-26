@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/constants.dart';
 import '../../app/routes.dart';
 import '../../services/auth_service.dart';
 
@@ -36,18 +37,22 @@ class _SplashViewState extends State<SplashView> {
 
   @override
   Widget build(BuildContext context) {
+    final double logoSize = (MediaQuery.sizeOf(context).width * 0.58)
+        .clamp(270.0, 340.0)
+        .toDouble();
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Center(
         child: Image.asset(
           'assets/images/logo.jpeg',
-          width: 220,
-          height: 220,
+          width: logoSize,
+          height: logoSize,
           errorBuilder: (context, error, stackTrace) {
             return const Icon(
               Icons.image_not_supported_rounded,
               size: 100,
-              color: Colors.orange,
+              color: AppConstants.appOrange,
             );
           },
         ),

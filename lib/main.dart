@@ -12,16 +12,18 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const Color buttonOrange = Colors.orange;
-
     return MaterialApp(
       title: AppConstants.appTitle,
       debugShowCheckedModeBanner: false,
       initialRoute: Routes.splash,
       routes: Routes.routes,
       theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppConstants.appOrange,
+          primary: AppConstants.appOrange,
+        ),
         snackBarTheme: const SnackBarThemeData(
-          backgroundColor: Colors.orange,
+          backgroundColor: AppConstants.appOrange,
           contentTextStyle: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w500,
@@ -29,23 +31,37 @@ class MyApp extends StatelessWidget {
           actionTextColor: Colors.white,
           behavior: SnackBarBehavior.floating,
         ),
+        textTheme: const TextTheme(
+          headlineMedium: TextStyle(
+            fontSize: 30,
+            fontWeight: FontWeight.w700,
+          ),
+          titleLarge: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+          ),
+          titleMedium: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: buttonOrange,
+            backgroundColor: AppConstants.appOrange,
             foregroundColor: Colors.white,
           ),
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
-            backgroundColor: buttonOrange,
+            backgroundColor: AppConstants.appOrange,
             foregroundColor: Colors.white,
           ),
         ),
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
-            backgroundColor: buttonOrange,
+            backgroundColor: AppConstants.appOrange,
             foregroundColor: Colors.white,
-            side: const BorderSide(color: buttonOrange),
+            side: const BorderSide(color: AppConstants.appOrange),
           ),
         ),
       ),

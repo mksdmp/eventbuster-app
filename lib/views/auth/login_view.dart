@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../app/constants.dart';
 import '../../app/routes.dart';
 import '../../controllers/auth_controller.dart';
 import '../../widgets/custom_button.dart';
@@ -75,6 +76,11 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   Widget build(BuildContext context) {
+    final double logoWidth = (MediaQuery.sizeOf(context).width * 0.62)
+        .clamp(255.0, 320.0)
+        .toDouble();
+    final double logoHeight = (logoWidth * 0.68).clamp(170.0, 205.0).toDouble();
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -87,8 +93,8 @@ class _LoginViewState extends State<LoginView> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    height: 130,
-                    width: 210,
+                    height: logoHeight,
+                    width: logoWidth,
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -121,7 +127,7 @@ class _LoginViewState extends State<LoginView> {
                         const Text(
                           'Sign In',
                           style: TextStyle(
-                            fontSize: 24,
+                            fontSize: 22,
                             fontWeight: FontWeight.w700,
                             color: Color(0xFF1F1F1F),
                           ),
@@ -130,7 +136,10 @@ class _LoginViewState extends State<LoginView> {
                         const Text(
                           'Use your account credentials to continue.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Color(0xFF666666)),
+                          style: TextStyle(
+                            color: Color(0xFF666666),
+                            fontSize: 13,
+                          ),
                         ),
                         const SizedBox(height: 24),
                         CustomTextField(
@@ -164,7 +173,10 @@ class _LoginViewState extends State<LoginView> {
                           alignment: Alignment.centerRight,
                           child: Text(
                             'Forgot Password?',
-                            style: TextStyle(color: Colors.orange),
+                            style: TextStyle(
+                              color: AppConstants.appOrange,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 18),
@@ -176,6 +188,7 @@ class _LoginViewState extends State<LoginView> {
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: Color(0xFF333333),
+                                  fontSize: 13,
                                 ),
                               ),
                             ),
