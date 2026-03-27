@@ -805,11 +805,46 @@ class _BookingCard extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-              ],
-            ),
-          ),
-        ],
-      ),
+                if (isDownloadingPdf) ...<Widget>[
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF2E8),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFFFFD7BF)),
+                    ),
+                    child: const Row(
+                      children: [
+                        SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: AppConstants.appOrange,
+                          ),
+                        ),
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Downloading PDF...',
+                            style: TextStyle(
+                              color: Color(0xFF9A3412),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+               ],
+             ),
+           ),
+         ],
+       ),
     );
   }
 }

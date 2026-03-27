@@ -8,6 +8,9 @@ import '../../services/bookings_service.dart';
 import '../../services/mail_launcher_stub.dart'
     if (dart.library.io) '../../services/mail_launcher_io.dart'
     if (dart.library.html) '../../services/mail_launcher_web.dart';
+import '../../services/map_launcher_stub.dart'
+    if (dart.library.io) '../../services/map_launcher_io.dart'
+    if (dart.library.html) '../../services/map_launcher_web.dart';
 import '../../services/pdf_file_saver_stub.dart'
     if (dart.library.io) '../../services/pdf_file_saver_io.dart'
     if (dart.library.html) '../../services/pdf_file_saver_web.dart';
@@ -367,6 +370,22 @@ class _TicketDetailViewState extends State<TicketDetailView> {
         .join(', ');
   }
 
+  String get _mapSearchQuery {
+    final List<String> parts = <String>[
+      (_eventDetails?.address ?? _verifiedTicket?.event.address ?? widget.order.event.address).trim(),
+      (_eventDetails?.city ?? _verifiedTicket?.event.city ?? widget.order.event.city).trim(),
+      (_eventDetails?.state ?? _verifiedTicket?.event.state ?? widget.order.event.state).trim(),
+      (_eventDetails?.zipCode ?? _verifiedTicket?.event.zipCode ?? widget.order.event.zipCode).trim(),
+    ].where((String value) => value.isNotEmpty && value != '-').toList();
+
+    if (parts.isNotEmpty) {
+      return parts.join(', ');
+    }
+
+    final String venue = (_eventDetails?.venue ?? _verifiedTicket?.event.venue ?? widget.order.event.venue).trim();
+    return venue == '-' ? '' : venue;
+  }
+
   String get _organizerEmail {
     final String value = (_eventDetails?.organizerEmail).toString().trim();
     return value.isEmpty || value == 'null' ? '-' : value;
@@ -435,8 +454,25 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     _showSnackBar('Unable to open email app for $_supportEmail');
   }
 
-  void _showMapMessage() {
-    _showSnackBar('Map integration is not connected yet.');
+  Future<void> _showMapMessage() async {
+    final String query = _mapSearchQuery;
+    if (query.isEmpty) {
+      _showSnackBar('Venue address is not available for this event.');
+      return;
+    }
+
+    final String mapUrl =
+        'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(query)}';
+
+    if (await launchMapSearchUrl(mapUrl)) {
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    _showSnackBar('Unable to open map for this venue.');
   }
 
   Future<void> _downloadPdf() async {

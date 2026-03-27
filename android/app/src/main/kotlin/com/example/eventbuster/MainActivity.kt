@@ -37,5 +37,33 @@ class MainActivity : FlutterActivity() {
             startActivity(intent)
             result.success(true)
         }
+
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "eventbuster/map_launcher"
+        ).setMethodCallHandler { call, result ->
+            if (call.method != "openUrl") {
+                result.notImplemented()
+                return@setMethodCallHandler
+            }
+
+            val url = call.argument<String>("url")?.trim().orEmpty()
+            if (url.isEmpty()) {
+                result.success(false)
+                return@setMethodCallHandler
+            }
+
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse(url)
+            }
+
+            if (intent.resolveActivity(packageManager) == null) {
+                result.success(false)
+                return@setMethodCallHandler
+            }
+
+            startActivity(intent)
+            result.success(true)
+        }
     }
 }
