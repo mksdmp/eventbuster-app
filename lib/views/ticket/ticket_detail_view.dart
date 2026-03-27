@@ -5,6 +5,12 @@ import '../../app/constants.dart';
 import '../../models/booking_models.dart';
 import '../../services/auth_service.dart';
 import '../../services/bookings_service.dart';
+import '../../services/mail_launcher_stub.dart'
+    if (dart.library.io) '../../services/mail_launcher_io.dart'
+    if (dart.library.html) '../../services/mail_launcher_web.dart';
+import '../../services/pdf_file_saver_stub.dart'
+    if (dart.library.io) '../../services/pdf_file_saver_io.dart'
+    if (dart.library.html) '../../services/pdf_file_saver_web.dart';
 
 class TicketDetailView extends StatefulWidget {
   const TicketDetailView({
@@ -19,10 +25,12 @@ class TicketDetailView extends StatefulWidget {
 }
 
 class _TicketDetailViewState extends State<TicketDetailView> {
+  static const String _supportEmail = 'support@eventbuster.com';
   final AuthService _authService = AuthService();
   final BookingsService _bookingsService = BookingsService();
 
   bool _isLoading = true;
+  bool _isDownloadingPdf = false;
   VerifiedTicket? _verifiedTicket;
   List<VerifiedTicket> _verifiedTickets = <VerifiedTicket>[];
   EventDetails? _eventDetails;
@@ -152,10 +160,15 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                       ),
                       const SizedBox(height: 10),
                       TextButton(
-                        onPressed: _showContactMessage,
+                        onPressed: _openSupportEmail,
                         style: TextButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          foregroundColor: AppConstants.appOrange,
+                          backgroundColor: Colors.transparent,
+                          overlayColor: AppConstants.appOrange.withOpacity(0.08),
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          alignment: Alignment.centerLeft,
                         ),
                         child: const Text(
                           'Contact the organizer',
@@ -167,7 +180,7 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        _organizerEmail,
+                        _supportEmail,
                         style: const TextStyle(
                           color: Color(0xFF374151),
                           fontSize: 15,
@@ -289,7 +302,8 @@ class _TicketDetailViewState extends State<TicketDetailView> {
                       ),
                       const SizedBox(height: 34),
                       _BottomActionRow(
-                        onDownloadPdf: _showPdfMessage,
+                        onDownloadPdf: _downloadPdf,
+                        isDownloadingPdf: _isDownloadingPdf,
                         onShowQrCode: _showQrCodeDialog,
                         onBrowseMoreEvents: () {
                           Navigator.of(context).pop();
@@ -409,16 +423,100 @@ class _TicketDetailViewState extends State<TicketDetailView> {
     _showSnackBar('Google Calendar integration is not connected yet.');
   }
 
-  void _showContactMessage() {
-    _showSnackBar('Organizer contact actions are not connected yet.');
+  Future<void> _openSupportEmail() async {
+    if (await launchSupportEmail(_supportEmail)) {
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    _showSnackBar('Unable to open email app for $_supportEmail');
   }
 
   void _showMapMessage() {
     _showSnackBar('Map integration is not connected yet.');
   }
 
-  void _showPdfMessage() {
-    _showSnackBar('PDF download is not connected yet.');
+  Future<void> _downloadPdf() async {
+    if (_isDownloadingPdf) {
+      return;
+    }
+
+    setState(() {
+      _isDownloadingPdf = true;
+    });
+
+    try {
+      final String? token = await _authService.getToken();
+      if (token == null || token.trim().isEmpty) {
+        throw Exception('No auth token found. Please sign in again.');
+      }
+
+      final VerifiedTicket? verifiedTicket = _verifiedTicket;
+      String eventId = widget.order.event.id.trim();
+      String paymentId = widget.order.paymentId.trim();
+
+      if (verifiedTicket != null) {
+        if (eventId.isEmpty) {
+          eventId = verifiedTicket.event.id.trim();
+        }
+        if (paymentId.isEmpty) {
+          paymentId = verifiedTicket.paymentId.trim();
+        }
+      }
+
+      if (eventId.isEmpty || paymentId.isEmpty) {
+        final VerifiedTicketPayload payload = await _bookingsService.verifyTicket(
+          token: token,
+          code: widget.order.orderId,
+        );
+
+        if (payload.tickets.isEmpty) {
+          throw Exception('No ticket details were returned for this booking.');
+        }
+
+        eventId = eventId.isEmpty ? payload.ticket.event.id.trim() : eventId;
+        paymentId = paymentId.isEmpty ? payload.ticket.paymentId.trim() : paymentId;
+      }
+
+      if (eventId.isEmpty || paymentId.isEmpty) {
+        throw Exception('Missing event or payment details for this booking.');
+      }
+
+      final List<int> pdfBytes = await _bookingsService.downloadTicketPdf(
+        token: token,
+        eventId: eventId,
+        orderId: widget.order.orderId,
+        paymentId: paymentId,
+      );
+
+      final String savedPath = await savePdfBytes(
+        bytes: pdfBytes,
+        fileName: 'eventbuster-ticket-${widget.order.orderId}.pdf',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _showSnackBar('PDF downloaded: $savedPath');
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      _showSnackBar(e.toString());
+    } finally {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isDownloadingPdf = false;
+      });
+    }
   }
 
   void _showQrCodeDialog() {
@@ -907,10 +1005,13 @@ class _InfoIconBlock extends StatelessWidget {
                 TextButton(
                   onPressed: onActionTap,
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppConstants.appOrange,
+                    backgroundColor: Colors.transparent,
+                    overlayColor: AppConstants.appOrange.withOpacity(0.08),
+                    padding: EdgeInsets.zero,
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    alignment: Alignment.centerLeft,
                   ),
                   child: Text(
                     actionText!,
@@ -1027,40 +1128,48 @@ class _SummaryValueRow extends StatelessWidget {
 class _BottomActionRow extends StatelessWidget {
   const _BottomActionRow({
     required this.onDownloadPdf,
+    required this.isDownloadingPdf,
     required this.onShowQrCode,
     required this.onBrowseMoreEvents,
   });
 
   final VoidCallback onDownloadPdf;
+  final bool isDownloadingPdf;
   final VoidCallback onShowQrCode;
   final VoidCallback onBrowseMoreEvents;
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      alignment: WrapAlignment.center,
-      crossAxisAlignment: WrapCrossAlignment.center,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        OutlinedButton(
-          onPressed: onDownloadPdf,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: AppConstants.appOrange,
-            side: const BorderSide(color: Color(0xFFFFB37A)),
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: isDownloadingPdf ? null : onDownloadPdf,
+            style: OutlinedButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: AppConstants.appOrange,
+              side: const BorderSide(color: Color(0xFFFFB37A)),
+              minimumSize: const Size.fromHeight(52),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              isDownloadingPdf ? 'Downloading PDF...' : 'Download PDF',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
-          child: const Text(
-            'Download PDF',
-            style: TextStyle(fontWeight: FontWeight.w700),
-          ),
         ),
+        const SizedBox(height: 12),
         DecoratedBox(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             gradient: const LinearGradient(
               colors: <Color>[Color(0xFFFF8A1F), Color(0xFFFF3B3F)],
             ),
@@ -1072,20 +1181,27 @@ class _BottomActionRow extends StatelessWidget {
               ),
             ],
           ),
-          child: ElevatedButton(
-            onPressed: onShowQrCode,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.transparent,
-              shadowColor: Colors.transparent,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: onShowQrCode,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                shadowColor: Colors.transparent,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(52),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-            ),
-            child: const Text(
-              'Show QR Code',
-              style: TextStyle(fontWeight: FontWeight.w700),
+              child: const Text(
+                'Show QR Code',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ),
         ),

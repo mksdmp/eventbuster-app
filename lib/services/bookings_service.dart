@@ -10,6 +10,7 @@ class BookingsService {
   static const String _verifyTicketUrl =
       'https://eventbuster.com/api/attendees/verify';
   static const String _eventsBaseUrl = 'https://eventbuster.com/api/events';
+  static const String _ticketPdfUrl = 'https://eventbuster.com/api/tickets/pdf';
 
   Future<MyBookingsPayload> fetchMyBookings({
     required String token,
@@ -95,5 +96,55 @@ class BookingsService {
     }
 
     return EventDetails.fromJson(decoded);
+  }
+
+  Future<List<int>> downloadTicketPdf({
+    required String token,
+    required String eventId,
+    required String orderId,
+    required String paymentId,
+  }) async {
+    final Uri url = Uri.parse(_ticketPdfUrl).replace(
+      queryParameters: <String, String>{
+        'eventId': eventId,
+        'orderId': orderId,
+        'paymentId': paymentId,
+      },
+    );
+
+    final http.Response response = await http.get(
+      url,
+      headers: <String, String>{
+        'accept': 'application/pdf',
+        'authorization': 'Bearer $token',
+        'cookie': 'lmt_token=$token',
+      },
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_extractPdfErrorMessage(response));
+    }
+
+    if (response.bodyBytes.isEmpty) {
+      throw Exception('Received an empty PDF response.');
+    }
+
+    return response.bodyBytes;
+  }
+
+  String _extractPdfErrorMessage(http.Response response) {
+    try {
+      final dynamic decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic>) {
+        final String message = (decoded['message'] ?? '').toString().trim();
+        if (message.isNotEmpty) {
+          return message;
+        }
+      }
+    } catch (_) {
+      // Ignore parse failures and fall back to a generic message.
+    }
+
+    return 'Failed to download ticket PDF (${response.statusCode})';
   }
 }

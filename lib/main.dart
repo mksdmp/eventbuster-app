@@ -2,20 +2,31 @@ import 'package:flutter/material.dart';
 
 import 'app/constants.dart';
 import 'app/routes.dart';
+import 'services/auth_service.dart';
 
-void main() {
-  runApp(const MyApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final String? token = await AuthService().getToken();
+  final bool isSignedIn = token != null && token.trim().isNotEmpty;
+
+  runApp(MyApp(initialRoute: isSignedIn ? Routes.dashboard : Routes.login));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({
+    super.key,
+    required this.initialRoute,
+  });
+
+  final String initialRoute;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: AppConstants.appTitle,
       debugShowCheckedModeBanner: false,
-      initialRoute: Routes.splash,
+      initialRoute: initialRoute,
       routes: Routes.routes,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(

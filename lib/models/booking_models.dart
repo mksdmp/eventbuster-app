@@ -18,6 +18,7 @@ class MyBookingsPayload {
 
 class MyBookingOrder {
   final String orderId;
+  final String paymentId;
   final DateTime? orderDate;
   final BookedEventSummary event;
   final String customerName;
@@ -34,6 +35,7 @@ class MyBookingOrder {
 
   const MyBookingOrder({
     required this.orderId,
+    required this.paymentId,
     required this.orderDate,
     required this.event,
     required this.customerName,
@@ -82,6 +84,7 @@ class MyBookingOrder {
   factory MyBookingOrder.fromJson(Map<String, dynamic> json) {
     return MyBookingOrder(
       orderId: _readString(json, <String>['orderId', '_id'], fallback: '-'),
+      paymentId: _readString(json, <String>['paymentId'], fallback: ''),
       orderDate: _parseDate(
         _readString(json, <String>['orderDate', 'createdAt'], fallback: ''),
       ),

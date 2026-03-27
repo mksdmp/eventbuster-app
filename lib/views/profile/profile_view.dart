@@ -5,6 +5,9 @@ import '../../app/constants.dart';
 import '../../models/booking_models.dart';
 import '../../services/auth_service.dart';
 import '../../services/bookings_service.dart';
+import '../../services/pdf_file_saver_stub.dart'
+    if (dart.library.io) '../../services/pdf_file_saver_io.dart'
+    if (dart.library.html) '../../services/pdf_file_saver_web.dart';
 import '../ticket/ticket_detail_view.dart';
 
 class ProfileView extends StatefulWidget {
@@ -27,6 +30,7 @@ class _ProfileViewState extends State<ProfileView> {
 
   bool _isLoading = true;
   String? _loadingQrOrderId;
+  String? _downloadingPdfOrderId;
   String? _error;
   List<MyBookingOrder> _orders = <MyBookingOrder>[];
 
@@ -138,6 +142,7 @@ class _ProfileViewState extends State<ProfileView> {
                   onDownloadPdf: () => _handleDownloadPdf(order),
                   onShowQrCode: () => _showQrCodeDialog(order),
                   isShowingQrCode: _loadingQrOrderId == order.orderId,
+                  isDownloadingPdf: _downloadingPdfOrderId == order.orderId,
                   onViewTicket: () => _openTicketDetails(order),
                 ),
               ),
@@ -147,12 +152,80 @@ class _ProfileViewState extends State<ProfileView> {
     );
   }
 
-  void _handleDownloadPdf(MyBookingOrder order) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('PDF download is not connected yet for ${order.orderId}.'),
-      ),
-    );
+  Future<void> _handleDownloadPdf(MyBookingOrder order) async {
+    if (_downloadingPdfOrderId != null) {
+      return;
+    }
+
+    setState(() {
+      _downloadingPdfOrderId = order.orderId;
+    });
+
+    try {
+      final String? token = await _authService.getToken();
+      if (token == null || token.trim().isEmpty) {
+        throw Exception('No auth token found. Please sign in again.');
+      }
+
+      String eventId = order.event.id.trim();
+      String paymentId = order.paymentId.trim();
+
+      if (eventId.isEmpty || paymentId.isEmpty) {
+        final VerifiedTicketPayload payload = await _bookingsService.verifyTicket(
+          token: token,
+          code: order.orderId,
+        );
+
+        if (payload.tickets.isEmpty) {
+          throw Exception('No ticket details were returned for this booking.');
+        }
+
+        eventId = eventId.isEmpty ? payload.ticket.event.id.trim() : eventId;
+        paymentId = paymentId.isEmpty ? payload.ticket.paymentId.trim() : paymentId;
+      }
+
+      if (eventId.isEmpty || paymentId.isEmpty) {
+        throw Exception('Missing event or payment details for this booking.');
+      }
+
+      final List<int> pdfBytes = await _bookingsService.downloadTicketPdf(
+        token: token,
+        eventId: eventId,
+        orderId: order.orderId,
+        paymentId: paymentId,
+      );
+
+      final String savedPath = await savePdfBytes(
+        bytes: pdfBytes,
+        fileName: 'eventbuster-ticket-${order.orderId}.pdf',
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('PDF downloaded: $savedPath'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString())),
+      );
+    } finally {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _downloadingPdfOrderId = null;
+      });
+    }
   }
 
   Future<void> _showQrCodeDialog(MyBookingOrder order) async {
@@ -616,6 +689,7 @@ class _BookingCard extends StatelessWidget {
     required this.onDownloadPdf,
     required this.onShowQrCode,
     required this.isShowingQrCode,
+    required this.isDownloadingPdf,
     required this.onViewTicket,
   });
 
@@ -623,12 +697,12 @@ class _BookingCard extends StatelessWidget {
   final VoidCallback onDownloadPdf;
   final VoidCallback onShowQrCode;
   final bool isShowingQrCode;
+  final bool isDownloadingPdf;
   final VoidCallback onViewTicket;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -644,109 +718,95 @@ class _BookingCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Stack(
             children: [
               ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: SizedBox(
-                  width: 110,
-                  height: 110,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
                   child: _BookingImage(imageUrl: order.event.imageUrl),
                 ),
               ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
+              Positioned(
+                top: 14,
+                right: 14,
+                child: _BookingOverflowMenu(
+                  isDownloadingPdf: isDownloadingPdf,
+                  isShowingQrCode: isShowingQrCode,
+                  onDownloadPdf: onDownloadPdf,
+                  onShowQrCode: onShowQrCode,
+                  onViewTicket: onViewTicket,
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _StatusChip(label: order.statusLabel),
+                const SizedBox(height: 10),
+                Text(
+                  order.event.title,
+                  style: const TextStyle(
+                    color: Color(0xFF111827),
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _MetaLine(
+                  icon: Icons.calendar_today_outlined,
+                  text: _formatEventDate(order.event.startDate, order.event.date),
+                ),
+                const SizedBox(height: 6),
+                _MetaLine(
+                  icon: Icons.location_on_outlined,
+                  text: order.event.locationLine,
+                ),
+                const SizedBox(height: 16),
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: _StatusChip(label: order.statusLabel),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      order.event.title,
-                      style: const TextStyle(
-                        color: Color(0xFF111827),
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
+                    Expanded(
+                      child: _InfoTile(
+                        label: 'Booking ID',
+                        value: order.orderId,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    _MetaLine(
-                      icon: Icons.calendar_today_outlined,
-                      text: _formatEventDate(order.event.startDate, order.event.date),
+                    const SizedBox(width: 12),
+                    const _InfoDivider(),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _InfoTile(
+                        label: 'Tickets',
+                        value: _formatTicketCount(order.ticketQty),
+                      ),
                     ),
-                    const SizedBox(height: 6),
-                    _MetaLine(
-                      icon: Icons.location_on_outlined,
-                      text: order.event.locationLine,
+                    const SizedBox(width: 12),
+                    const _InfoDivider(),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _InfoTile(
+                        label: 'Total',
+                        value: _formatCurrency(order.event.currency, order.amount),
+                      ),
                     ),
                   ],
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _InfoTile(
-                  label: 'Booking ID',
-                  value: order.orderId,
+                const SizedBox(height: 12),
+                Text(
+                  'Ticket Types: ${order.ticketTypesLabel}',
+                  style: const TextStyle(
+                    color: Color(0xFF4B5563),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _InfoTile(
-                  label: 'Tickets',
-                  value: _formatTicketCount(order.ticketQty),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _InfoTile(
-                  label: 'Total',
-                  value: _formatCurrency(order.event.currency, order.amount),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Ticket Types: ${order.ticketTypesLabel}',
-            style: const TextStyle(
-              color: Color(0xFF4B5563),
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+              ],
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _ActionButton(
-                  label: 'Download PDF',
-                  onPressed: onDownloadPdf,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _ActionButton(
-                  label: isShowingQrCode ? 'Loading...' : 'Show QR Code',
-                  onPressed: isShowingQrCode ? null : onShowQrCode,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _ActionButton(
-                  label: 'View Ticket',
-                  onPressed: onViewTicket,
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -754,54 +814,79 @@ class _BookingCard extends StatelessWidget {
   }
 }
 
-class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.label,
-    required this.onPressed,
+enum _BookingMenuAction {
+  downloadPdf,
+  showQrCode,
+  viewTicket,
+}
+
+class _BookingOverflowMenu extends StatelessWidget {
+  const _BookingOverflowMenu({
+    required this.isDownloadingPdf,
+    required this.isShowingQrCode,
+    required this.onDownloadPdf,
+    required this.onShowQrCode,
+    required this.onViewTicket,
   });
 
-  final String label;
-  final VoidCallback? onPressed;
+  final bool isDownloadingPdf;
+  final bool isShowingQrCode;
+  final VoidCallback onDownloadPdf;
+  final VoidCallback onShowQrCode;
+  final VoidCallback onViewTicket;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        gradient: const LinearGradient(
-          colors: <Color>[Color(0xFFFF8A1F), Color(0xFFFF3B3F)],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x33FF6A00),
-            blurRadius: 14,
+            color: Color(0x220F172A),
+            blurRadius: 16,
             offset: Offset(0, 8),
           ),
         ],
       ),
-      child: ElevatedButton(
-        onPressed: onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          foregroundColor: Colors.white,
-          minimumSize: const Size(double.infinity, 48),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+      child: PopupMenuButton<_BookingMenuAction>(
+        tooltip: 'More actions',
+        onSelected: (_BookingMenuAction action) {
+          switch (action) {
+            case _BookingMenuAction.downloadPdf:
+              onDownloadPdf();
+              break;
+            case _BookingMenuAction.showQrCode:
+              onShowQrCode();
+              break;
+            case _BookingMenuAction.viewTicket:
+              onViewTicket();
+              break;
+          }
+        },
+        itemBuilder: (BuildContext context) => <PopupMenuEntry<_BookingMenuAction>>[
+          PopupMenuItem<_BookingMenuAction>(
+            value: _BookingMenuAction.downloadPdf,
+            enabled: !isDownloadingPdf,
+            child: Text(isDownloadingPdf ? 'Downloading PDF...' : 'Download PDF'),
           ),
+          PopupMenuItem<_BookingMenuAction>(
+            value: _BookingMenuAction.showQrCode,
+            enabled: !isShowingQrCode,
+            child: Text(isShowingQrCode ? 'Loading QR Code...' : 'Show QR Code'),
+          ),
+          const PopupMenuItem<_BookingMenuAction>(
+            value: _BookingMenuAction.viewTicket,
+            child: Text('View Ticket'),
+          ),
+        ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
         ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
+        color: Colors.white,
+        icon: const Icon(
+          Icons.more_vert_rounded,
+          color: Color(0xFF111827),
         ),
       ),
     );
@@ -927,36 +1012,42 @@ class _InfoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF6B7280),
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Color(0xFF111827),
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InfoDivider extends StatelessWidget {
+  const _InfoDivider();
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF6B7280),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF111827),
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
+      width: 1,
+      height: 38,
+      color: const Color(0xFFE5E7EB),
     );
   }
 }

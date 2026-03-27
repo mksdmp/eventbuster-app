@@ -298,7 +298,7 @@ class _ScanQrViewState extends State<ScanQrView> {
         ),
         const SizedBox(height: 4),
         const Text(
-          'Scan attendee QR codes or enter the code manually.',
+          'Scan attendee QR codes.',
           style: TextStyle(color: Color(0xFF4B5563), fontSize: 13),
         ),
         const SizedBox(height: 16),
@@ -413,63 +413,63 @@ class _ScanQrViewState extends State<ScanQrView> {
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
-              ),
-            ),
-          const Text(
-            'Manual code',
-            style: TextStyle(
-              color: Color(0xFF1E293B),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Paste the full QR payload or attendee id to use the same check-in API.',
-            style: TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 12,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _manualCodeController,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: _isSubmitting ? null : (_) => _submitCheckIn(_manualCodeController.text),
-                  decoration: InputDecoration(
-                    hintText: 'Enter ticket QR code or attendee id',
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 12,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: _orange),
-                    ),
-                  ),
                 ),
               ),
-              const SizedBox(width: 10),
-              ElevatedButton(
-                onPressed: _isSubmitting
-                    ? null
-                    : () {
-                        final String code = _manualCodeController.text.trim();
-                        if (code.isEmpty) {
-                          _showMessage('Please enter ticket QR code');
-                          return;
-                        }
-                        _submitCheckIn(code);
-                      },
-                child: Text(_isSubmitting ? 'Checking...' : 'Check In'),
-              ),
-            ],
-          ),
+          // const Text(
+          //   'Manual code',
+          //   style: TextStyle(
+          //     color: Color(0xFF1E293B),
+          //     fontWeight: FontWeight.w700,
+          //   ),
+          // ),
+          // const SizedBox(height: 8),
+          // const Text(
+          //   'Paste the full QR payload or attendee id to use the same check-in API.',
+          //   style: TextStyle(
+          //     color: Color(0xFF64748B),
+          //     fontSize: 12,
+          //   ),
+          // ),
+          // const SizedBox(height: 10),
+          // Row(
+          //   children: [
+          //     Expanded(
+          //       child: TextField(
+          //         controller: _manualCodeController,
+          //         textInputAction: TextInputAction.done,
+          //         onSubmitted: _isSubmitting ? null : (_) => _submitCheckIn(_manualCodeController.text),
+          //         decoration: InputDecoration(
+          //           hintText: 'Enter ticket QR code or attendee id',
+          //           contentPadding: const EdgeInsets.symmetric(
+          //             horizontal: 12,
+          //             vertical: 12,
+          //           ),
+          //           border: OutlineInputBorder(
+          //             borderRadius: BorderRadius.circular(10),
+          //           ),
+          //           focusedBorder: OutlineInputBorder(
+          //             borderRadius: BorderRadius.circular(10),
+          //             borderSide: const BorderSide(color: _orange),
+          //           ),
+          //         ),
+          //       ),
+          //     ),
+          //     const SizedBox(width: 10),
+          //     ElevatedButton(
+          //       onPressed: _isSubmitting
+          //           ? null
+          //           : () {
+          //               final String code = _manualCodeController.text.trim();
+          //               if (code.isEmpty) {
+          //                 _showMessage('Please enter ticket QR code');
+          //                 return;
+          //               }
+          //               _submitCheckIn(code);
+          //             },
+          //       child: Text(_isSubmitting ? 'Checking...' : 'Check In'),
+          //     ),
+          //   ],
+          // ),
         ],
       ),
     );
@@ -625,7 +625,7 @@ class _ScanQrViewState extends State<ScanQrView> {
           ),
           SizedBox(height: 6),
           Text(
-            'Use manual code entry below.',
+            'Camera scanning is required on this screen.',
             style: TextStyle(color: Color(0xFF64748B)),
           ),
         ],
