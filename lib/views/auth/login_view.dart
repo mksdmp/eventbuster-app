@@ -105,7 +105,7 @@ class _LoginViewState extends State<LoginView> {
                       fit: BoxFit.contain,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 8),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(24),

@@ -130,259 +130,267 @@ class HomeView extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
+      child: Container(
+        decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(22),
-          onTap: () => onSelectEvent(event),
-          child: Ink(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: isSelected ? _orange : const Color(0xFFE7EBF0),
-                width: isSelected ? 1.6 : 1,
-              ),
-              boxShadow: <BoxShadow>[
-                BoxShadow(
-                  color: isSelected
-                      ? const Color(0x22FF6A00)
-                      : const Color(0x120F172A),
-                  blurRadius: isSelected ? 28 : 18,
-                  offset: const Offset(0, 10),
-                ),
-              ],
+          boxShadow: <BoxShadow>[
+            BoxShadow(
+              color: isSelected
+                  ? const Color(0x1FFF6A00)
+                  : const Color(0x140F172A),
+              blurRadius: isSelected ? 24 : 18,
+              offset: const Offset(0, 8),
             ),
-            child: Column(
-              children: [
-                Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isSelected
-                          ? const <Color>[Color(0xFFFF6A00), Color(0xFFFFA45B)]
-                          : const <Color>[Color(0xFFFFE3CF), Color(0xFFFFF4EA)],
-                    ),
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: Material(
+            color: Colors.white,
+            child: InkWell(
+              onTap: () => onSelectEvent(event),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(
+                    color: isSelected ? _orange : const Color(0xFFE7EBF0),
+                    width: isSelected ? 1.5 : 1,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                child: Column(
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isSelected
+                              ? const <Color>[Color(0xFFFF7420), Color(0xFFFFB879)]
+                              : const <Color>[Color(0xFFFFD9BF), Color(0xFFFFF1E5)],
+                        ),
+                      ),
+                      child: const SizedBox(
+                        height: 10,
+                        width: double.infinity,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _DateBadge(date: event.startDate),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _DateBadge(date: event.startDate),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Expanded(
-                                      child: Text(
-                                        event.title,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: Color(0xFF111827),
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w700,
-                                          height: 1.15,
-                                        ),
-                                      ),
-                                    ),
-                                    if (isSelected) ...[
-                                      const SizedBox(width: 10),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 6,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFFFFF1E8),
-                                          borderRadius: BorderRadius.circular(999),
-                                        ),
-                                        child: const Text(
-                                          'Selected',
-                                          style: TextStyle(
-                                            color: _orange,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            event.title,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Color(0xFF111827),
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                              height: 1.15,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    ],
-                                  ],
-                                ),
-                                const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.location_on_outlined,
-                                      size: 16,
-                                      color: Color(0xFF64748B),
+                                        if (isSelected) ...[
+                                          const SizedBox(width: 10),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFFFF1E8),
+                                              borderRadius: BorderRadius.circular(999),
+                                            ),
+                                            child: const Text(
+                                              'Selected',
+                                              style: TextStyle(
+                                                color: _orange,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        event.venueLine,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: Color(0xFF475569),
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.schedule_rounded,
-                                      size: 16,
-                                      color: Color(0xFF64748B),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        _formatFriendlyDate(event.startDate, event.rawDate),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
+                                    const SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.location_on_outlined,
+                                          size: 16,
                                           color: Color(0xFF64748B),
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
                                         ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: SizedBox(
-                          height: 156,
-                          width: double.infinity,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              _EventThumbnail(imageUrl: event.imageUrl),
-                              DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: <Color>[
-                                      Colors.transparent,
-                                      Colors.black.withOpacity(0.52),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                left: 14,
-                                right: 14,
-                                bottom: 14,
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        event.title,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w700,
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            event.venueLine,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Color(0xFF475569),
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
                                         ),
-                                      ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 10),
-                                    const Icon(
-                                      Icons.arrow_forward_rounded,
-                                      color: Colors.white,
-                                      size: 18,
+                                    const SizedBox(height: 6),
+                                    Row(
+                                      children: [
+                                        const Icon(
+                                          Icons.schedule_rounded,
+                                          size: 16,
+                                          color: Color(0xFF64748B),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Text(
+                                            _formatFriendlyDate(event.startDate, event.rawDate),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Color(0xFF64748B),
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        children: [
-                          _StatChip(
-                            label: 'Sold',
-                            value: '${event.soldCount}',
-                            backgroundColor: const Color(0xFFFFF5ED),
-                            icon: Icons.trending_up_rounded,
-                          ),
-                          _StatChip(
-                            label: 'Remaining',
-                            value: '${event.remainingCount}',
-                            backgroundColor: const Color(0xFFF8FAFC),
-                            icon: Icons.confirmation_number_outlined,
-                          ),
-                          _StatChip(
-                            label: 'Net Sales',
-                            value: _formatCurrency(event.currency, event.netSales),
-                            backgroundColor: const Color(0xFFFFF1E8),
-                            icon: Icons.payments_outlined,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              isSelected
-                                  ? 'Tap to continue managing attendees.'
-                                  : 'Tap to open this event in attendees.',
-                              style: const TextStyle(
-                                color: Color(0xFF475569),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                          const SizedBox(height: 16),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: SizedBox(
+                              height: 156,
+                              width: double.infinity,
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  _EventThumbnail(imageUrl: event.imageUrl),
+                                  DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topCenter,
+                                        end: Alignment.bottomCenter,
+                                        colors: <Color>[
+                                          Colors.transparent,
+                                          Colors.black.withOpacity(0.52),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    left: 14,
+                                    right: 14,
+                                    bottom: 14,
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            event.title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        const Icon(
+                                          Icons.arrow_forward_rounded,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: isSelected ? _orange : const Color(0xFF111827),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.arrow_outward_rounded,
-                              color: Colors.white,
-                              size: 18,
-                            ),
+                          const SizedBox(height: 14),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              _StatChip(
+                                label: 'Sold',
+                                value: '${event.soldCount}',
+                                backgroundColor: const Color(0xFFFFF5ED),
+                                icon: Icons.trending_up_rounded,
+                              ),
+                              _StatChip(
+                                label: 'Remaining',
+                                value: '${event.remainingCount}',
+                                backgroundColor: const Color(0xFFF8FAFC),
+                                icon: Icons.confirmation_number_outlined,
+                              ),
+                              _StatChip(
+                                label: 'Net Sales',
+                                value: _formatCurrency(event.currency, event.netSales),
+                                backgroundColor: const Color(0xFFFFF1E8),
+                                icon: Icons.payments_outlined,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  isSelected
+                                      ? 'Tap to continue managing attendees.'
+                                      : 'Tap to open this event in attendees.',
+                                  style: const TextStyle(
+                                    color: Color(0xFF475569),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: isSelected ? _orange : const Color(0xFF111827),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(
+                                  Icons.arrow_outward_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
