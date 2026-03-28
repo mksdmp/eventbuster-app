@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -38,6 +39,10 @@ class _TicketDetailViewState extends State<TicketDetailView> {
   List<VerifiedTicket> _verifiedTickets = <VerifiedTicket>[];
   EventDetails? _eventDetails;
   bool _hasPoppedForVerifyError = false;
+
+  bool get _useSystemPdfDownloader {
+    return !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  }
 
   @override
   void initState() {
@@ -521,23 +526,40 @@ class _TicketDetailViewState extends State<TicketDetailView> {
         throw Exception('Missing event or payment details for this booking.');
       }
 
-      final List<int> pdfBytes = await _bookingsService.downloadTicketPdf(
-        token: token,
+      final Uri pdfUrl = _bookingsService.buildTicketPdfUri(
         eventId: eventId,
         orderId: widget.order.orderId,
         paymentId: paymentId,
       );
+      final String fileName = 'eventbuster-ticket-${widget.order.orderId}.pdf';
+      final String message;
 
-      final String savedPath = await savePdfBytes(
-        bytes: pdfBytes,
-        fileName: 'eventbuster-ticket-${widget.order.orderId}.pdf',
-      );
+      if (_useSystemPdfDownloader) {
+        message = await downloadPdf(
+          fileName: fileName,
+          url: pdfUrl,
+          headers: _bookingsService.ticketPdfHeaders(token: token),
+        );
+      } else {
+        final List<int> pdfBytes = await _bookingsService.downloadTicketPdf(
+          token: token,
+          eventId: eventId,
+          orderId: widget.order.orderId,
+          paymentId: paymentId,
+        );
+
+        final String savedPath = await downloadPdf(
+          fileName: fileName,
+          bytes: pdfBytes,
+        );
+        message = 'PDF downloaded: $savedPath';
+      }
 
       if (!mounted) {
         return;
       }
 
-      _showSnackBar('PDF downloaded: $savedPath');
+      _showSnackBar(message);
     } catch (e) {
       if (!mounted) {
         return;

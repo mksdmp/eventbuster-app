@@ -23,6 +23,21 @@ Future<String> savePdfBytes({
   return normalizedFileName;
 }
 
+Future<String> downloadPdf({
+  required String fileName,
+  List<int>? bytes,
+  Uri? url,
+  Map<String, String>? headers,
+}) async {
+  if (bytes == null) {
+    throw ArgumentError('PDF bytes are required on this platform.');
+  }
+  return savePdfBytes(
+    bytes: bytes,
+    fileName: fileName,
+  );
+}
+
 String _normalizeFileName(String fileName) {
   final String trimmed = fileName.trim();
   final String sanitized = trimmed

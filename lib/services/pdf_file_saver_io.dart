@@ -1,5 +1,9 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
+
+const MethodChannel _pdfDownloadChannel = MethodChannel('eventbuster/pdf_download');
+
 Future<String> savePdfBytes({
   required List<int> bytes,
   required String fileName,
@@ -34,6 +38,37 @@ Future<String> savePdfBytes({
     lastError == null
         ? 'Unable to save PDF file.'
         : 'Unable to save PDF file: $lastError',
+  );
+}
+
+Future<String> downloadPdf({
+  required String fileName,
+  List<int>? bytes,
+  Uri? url,
+  Map<String, String>? headers,
+}) async {
+  if (Platform.isAndroid && url != null) {
+    final String normalizedFileName = _normalizeFileName(fileName);
+    final String? result = await _pdfDownloadChannel.invokeMethod<String>(
+      'enqueuePdfDownload',
+      <String, Object?>{
+        'url': url.toString(),
+        'fileName': normalizedFileName,
+        'headers': headers ?? <String, String>{},
+      },
+    );
+
+    return result ??
+        'Download started. Check notifications or the Downloads folder.';
+  }
+
+  if (bytes == null) {
+    throw ArgumentError('PDF bytes are required on this platform.');
+  }
+
+  return savePdfBytes(
+    bytes: bytes,
+    fileName: fileName,
   );
 }
 

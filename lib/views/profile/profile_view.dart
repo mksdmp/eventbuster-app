@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -33,6 +34,10 @@ class _ProfileViewState extends State<ProfileView> {
   String? _downloadingPdfOrderId;
   String? _error;
   List<MyBookingOrder> _orders = <MyBookingOrder>[];
+
+  bool get _useSystemPdfDownloader {
+    return !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+  }
 
   @override
   void initState() {
@@ -188,17 +193,34 @@ class _ProfileViewState extends State<ProfileView> {
         throw Exception('Missing event or payment details for this booking.');
       }
 
-      final List<int> pdfBytes = await _bookingsService.downloadTicketPdf(
-        token: token,
+      final Uri pdfUrl = _bookingsService.buildTicketPdfUri(
         eventId: eventId,
         orderId: order.orderId,
         paymentId: paymentId,
       );
+      final String fileName = 'eventbuster-ticket-${order.orderId}.pdf';
+      final String message;
 
-      final String savedPath = await savePdfBytes(
-        bytes: pdfBytes,
-        fileName: 'eventbuster-ticket-${order.orderId}.pdf',
-      );
+      if (_useSystemPdfDownloader) {
+        message = await downloadPdf(
+          fileName: fileName,
+          url: pdfUrl,
+          headers: _bookingsService.ticketPdfHeaders(token: token),
+        );
+      } else {
+        final List<int> pdfBytes = await _bookingsService.downloadTicketPdf(
+          token: token,
+          eventId: eventId,
+          orderId: order.orderId,
+          paymentId: paymentId,
+        );
+
+        final String savedPath = await downloadPdf(
+          fileName: fileName,
+          bytes: pdfBytes,
+        );
+        message = 'PDF downloaded: $savedPath';
+      }
 
       if (!mounted) {
         return;
@@ -206,7 +228,7 @@ class _ProfileViewState extends State<ProfileView> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('PDF downloaded: $savedPath'),
+          content: Text(message),
         ),
       );
     } catch (e) {
@@ -718,27 +740,12 @@ class _BookingCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: _BookingImage(imageUrl: order.event.imageUrl),
-                ),
-              ),
-              Positioned(
-                top: 14,
-                right: 14,
-                child: _BookingOverflowMenu(
-                  isDownloadingPdf: isDownloadingPdf,
-                  isShowingQrCode: isShowingQrCode,
-                  onDownloadPdf: onDownloadPdf,
-                  onShowQrCode: onShowQrCode,
-                  onViewTicket: onViewTicket,
-                ),
-              ),
-            ],
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: _BookingImage(imageUrl: order.event.imageUrl),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
@@ -805,6 +812,17 @@ class _BookingCard extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
+                const SizedBox(height: 16),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: _BookingQuickActions(
+                    isDownloadingPdf: isDownloadingPdf,
+                    isShowingQrCode: isShowingQrCode,
+                    onDownloadPdf: onDownloadPdf,
+                    onShowQrCode: onShowQrCode,
+                    onViewTicket: onViewTicket,
+                  ),
+                ),
                 if (isDownloadingPdf) ...<Widget>[
                   const SizedBox(height: 14),
                   Container(
@@ -840,23 +858,17 @@ class _BookingCard extends StatelessWidget {
                     ),
                   ),
                 ],
-               ],
-             ),
-           ),
-         ],
-       ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-enum _BookingMenuAction {
-  downloadPdf,
-  showQrCode,
-  viewTicket,
-}
-
-class _BookingOverflowMenu extends StatelessWidget {
-  const _BookingOverflowMenu({
+class _BookingQuickActions extends StatelessWidget {
+  const _BookingQuickActions({
     required this.isDownloadingPdf,
     required this.isShowingQrCode,
     required this.onDownloadPdf,
@@ -872,56 +884,84 @@ class _BookingOverflowMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x220F172A),
-            blurRadius: 16,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: PopupMenuButton<_BookingMenuAction>(
-        tooltip: 'More actions',
-        onSelected: (_BookingMenuAction action) {
-          switch (action) {
-            case _BookingMenuAction.downloadPdf:
-              onDownloadPdf();
-              break;
-            case _BookingMenuAction.showQrCode:
-              onShowQrCode();
-              break;
-            case _BookingMenuAction.viewTicket:
-              onViewTicket();
-              break;
-          }
-        },
-        itemBuilder: (BuildContext context) => <PopupMenuEntry<_BookingMenuAction>>[
-          PopupMenuItem<_BookingMenuAction>(
-            value: _BookingMenuAction.downloadPdf,
-            enabled: !isDownloadingPdf,
-            child: Text(isDownloadingPdf ? 'Downloading PDF...' : 'Download PDF'),
-          ),
-          PopupMenuItem<_BookingMenuAction>(
-            value: _BookingMenuAction.showQrCode,
-            enabled: !isShowingQrCode,
-            child: Text(isShowingQrCode ? 'Loading QR Code...' : 'Show QR Code'),
-          ),
-          const PopupMenuItem<_BookingMenuAction>(
-            value: _BookingMenuAction.viewTicket,
-            child: Text('View Ticket'),
-          ),
-        ],
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _BookingActionIconButton(
+          tooltip: isDownloadingPdf ? 'Downloading PDF' : 'Download PDF',
+          icon: Icons.picture_as_pdf_rounded,
+          isLoading: isDownloadingPdf,
+          onTap: isDownloadingPdf ? null : onDownloadPdf,
         ),
-        color: Colors.white,
-        icon: const Icon(
-          Icons.more_vert_rounded,
-          color: Color(0xFF111827),
+        const SizedBox(width: 10),
+        _BookingActionIconButton(
+          tooltip: isShowingQrCode ? 'Loading QR Code' : 'Show QR Code',
+          icon: Icons.qr_code_2_rounded,
+          isLoading: isShowingQrCode,
+          onTap: isShowingQrCode ? null : onShowQrCode,
+        ),
+        const SizedBox(width: 10),
+        _BookingActionIconButton(
+          tooltip: 'View Ticket',
+          icon: Icons.confirmation_num_outlined,
+          onTap: onViewTicket,
+        ),
+      ],
+    );
+  }
+}
+
+class _BookingActionIconButton extends StatelessWidget {
+  const _BookingActionIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+    this.isLoading = false,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Ink(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: onTap == null ? const Color(0xFFF3F4F6) : const Color(0xFFFFF2E8),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: onTap == null ? const Color(0xFFE5E7EB) : const Color(0xFFFFD7BF),
+              ),
+            ),
+            child: Center(
+              child: isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: AppConstants.appOrange,
+                      ),
+                    )
+                  : Icon(
+                      icon,
+                      size: 22,
+                      color: onTap == null
+                          ? const Color(0xFF9CA3AF)
+                          : AppConstants.appOrange,
+                    ),
+            ),
+          ),
         ),
       ),
     );

@@ -104,21 +104,15 @@ class BookingsService {
     required String orderId,
     required String paymentId,
   }) async {
-    final Uri url = Uri.parse(_ticketPdfUrl).replace(
-      queryParameters: <String, String>{
-        'eventId': eventId,
-        'orderId': orderId,
-        'paymentId': paymentId,
-      },
+    final Uri url = buildTicketPdfUri(
+      eventId: eventId,
+      orderId: orderId,
+      paymentId: paymentId,
     );
 
     final http.Response response = await http.get(
       url,
-      headers: <String, String>{
-        'accept': 'application/pdf',
-        'authorization': 'Bearer $token',
-        'cookie': 'lmt_token=$token',
-      },
+      headers: ticketPdfHeaders(token: token),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -130,6 +124,30 @@ class BookingsService {
     }
 
     return response.bodyBytes;
+  }
+
+  Uri buildTicketPdfUri({
+    required String eventId,
+    required String orderId,
+    required String paymentId,
+  }) {
+    return Uri.parse(_ticketPdfUrl).replace(
+      queryParameters: <String, String>{
+        'eventId': eventId,
+        'orderId': orderId,
+        'paymentId': paymentId,
+      },
+    );
+  }
+
+  Map<String, String> ticketPdfHeaders({
+    required String token,
+  }) {
+    return <String, String>{
+      'accept': 'application/pdf',
+      'authorization': 'Bearer $token',
+      'cookie': 'lmt_token=$token',
+    };
   }
 
   String _extractPdfErrorMessage(http.Response response) {
