@@ -11,6 +11,7 @@ class OrganizerEventSummary {
   final String imageUrl;
   final String rawDate;
   final DateTime? startDate;
+  final List<String> ticketTiers;
   final int soldCount;
   final int remainingCount;
   final double netSales;
@@ -26,6 +27,7 @@ class OrganizerEventSummary {
     required this.imageUrl,
     required this.rawDate,
     required this.startDate,
+    required this.ticketTiers,
     required this.soldCount,
     required this.remainingCount,
     required this.netSales,
@@ -90,6 +92,13 @@ class OrganizerEventSummary {
         fallback: '',
       ),
       startDate: parsedStartDate,
+      ticketTiers: ticketTiers
+          .whereType<Map<String, dynamic>>()
+          .map((Map<String, dynamic> tier) {
+            return _readString(tier, <String>['name'], fallback: '');
+          })
+          .where((String name) => name.isNotEmpty)
+          .toList(),
       soldCount: _readInt(
         json,
         <String>[

@@ -24,6 +24,8 @@ class AttendeesView extends StatefulWidget {
 
 class _AttendeesViewState extends State<AttendeesView> {
   static const Color _orange = Color(0xFFFF6A00);
+  static const String _allTicketTypesValue = '__all_ticket_types__';
+  static const String _allTicketTypesLabel = 'All Ticket Types';
 
   final AttendeesService _service = AttendeesService();
   final AuthService _authService = AuthService();
@@ -39,7 +41,7 @@ class _AttendeesViewState extends State<AttendeesView> {
     pages: 1,
   );
   String _selectedStatus = 'All Status';
-  String _selectedTicketType = 'All Ticket Types';
+  String _selectedTicketType = _allTicketTypesValue;
   String? _expandedOrderId;
 
   @override
@@ -71,7 +73,7 @@ class _AttendeesViewState extends State<AttendeesView> {
     _error = null;
     _expandedOrderId = null;
     _selectedStatus = 'All Status';
-    _selectedTicketType = 'All Ticket Types';
+    _selectedTicketType = _allTicketTypesValue;
     _pagination = const AttendeesPagination(
       page: 1,
       limit: 20,
@@ -114,9 +116,12 @@ class _AttendeesViewState extends State<AttendeesView> {
       setState(() {
         _orders = payload.orders;
         _pagination = payload.pagination;
-        if (_orders.isNotEmpty) {
-          _expandedOrderId = _orders.first.orderId;
-        }
+        final List<_FilteredOrderResult> sortedOrders = _buildFilteredOrders(
+          payload.orders,
+        );
+        _expandedOrderId = sortedOrders.isNotEmpty
+            ? sortedOrders.first.order.orderId
+            : null;
       });
     } catch (e) {
       setState(() {
@@ -499,43 +504,65 @@ class _AttendeesViewState extends State<AttendeesView> {
   }
 
   Widget _ticketDropdown() {
-    final Set<String> ticketTypeSet = _orders
-        .expand((AttendeeOrder order) => order.attendees)
-        .map((AttendeeTicket attendee) => attendee.ticketType.trim())
-        .where((String type) => type.isNotEmpty)
-        .map(_normalizeFilterLabel)
-        .toSet();
-    final List<String> sortedTypes = ticketTypeSet.toList()..sort();
-    final List<String> ticketTypes = <String>[
-      'All Ticket Types',
-      ...sortedTypes,
-    ];
+    final Map<String, String> ticketTypeLabels = <String, String>{};
+
+    for (final AttendeeTicket attendee in _orders.expand(
+      (AttendeeOrder order) => order.attendees,
+    )) {
+      final String key = _normalizeTicketType(attendee.ticketType);
+      if (key.isEmpty) {
+        continue;
+      }
+      ticketTypeLabels.putIfAbsent(
+        key,
+        () => _displayTicketTypeLabel(attendee.ticketType),
+      );
+    }
+
+    final List<String> sortedTypes = ticketTypeLabels.keys.toList()
+      ..sort((String left, String right) {
+        return _compareTicketTypes(
+          ticketTypeLabels[left],
+          ticketTypeLabels[right],
+        );
+      });
 
     return DropdownButtonFormField<String>(
-      value: ticketTypes.contains(_selectedTicketType)
+      value: _selectedTicketType == _allTicketTypesValue ||
+              ticketTypeLabels.containsKey(_selectedTicketType)
           ? _selectedTicketType
-          : 'All Ticket Types',
+          : _allTicketTypesValue,
       isExpanded: true,
       decoration: _dropdownDecoration(),
-      items: ticketTypes
-          .map(
-            (String e) => DropdownMenuItem<String>(
-              value: e,
-              child: Text(
-                e,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+      items: <DropdownMenuItem<String>>[
+        const DropdownMenuItem<String>(
+          value: _allTicketTypesValue,
+          child: Text(
+            _allTicketTypesLabel,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        ...sortedTypes.map(
+          (String key) => DropdownMenuItem<String>(
+            value: key,
+            child: Text(
+              ticketTypeLabels[key] ?? key,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          )
-          .toList(),
+          ),
+        ),
+      ],
       selectedItemBuilder: (BuildContext context) {
-        return ticketTypes
+        return <String>[_allTicketTypesValue, ...sortedTypes]
             .map(
-              (String e) => Align(
+              (String key) => Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  e,
+                  key == _allTicketTypesValue
+                      ? _allTicketTypesLabel
+                      : (ticketTypeLabels[key] ?? key),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -759,7 +786,7 @@ class _AttendeesViewState extends State<AttendeesView> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        attendee.ticketType.toLowerCase(),
+                        _displayTicketTypeLabel(attendee.ticketType),
                         style: const TextStyle(color: Color(0xFF1D4ED8)),
                       ),
                     ),
@@ -834,11 +861,14 @@ class _AttendeesViewState extends State<AttendeesView> {
   }
 
   List<_FilteredOrderResult> _filteredOrders() {
-    final String search = _searchController.text.trim().toLowerCase();
+    return _buildFilteredOrders(_orders);
+  }
 
+  List<_FilteredOrderResult> _buildFilteredOrders(List<AttendeeOrder> orders) {
+    final String search = _searchController.text.trim().toLowerCase();
     final List<_FilteredOrderResult> filtered = <_FilteredOrderResult>[];
 
-    for (final AttendeeOrder order in _orders) {
+    for (final AttendeeOrder order in orders) {
       final bool orderMatchesSearch = search.isEmpty ||
           order.orderId.toLowerCase().contains(search) ||
           order.buyerName.toLowerCase().contains(search) ||
@@ -849,14 +879,17 @@ class _AttendeesViewState extends State<AttendeesView> {
       ) {
         final bool statusOk = _selectedStatus == 'All Status' ||
             _normalizeFilterLabel(attendee.checkInStatus) == _selectedStatus;
-        final bool ticketOk = _selectedTicketType == 'All Ticket Types' ||
-            _normalizeFilterLabel(attendee.ticketType) == _selectedTicketType;
+        final bool ticketOk = _selectedTicketType == _allTicketTypesValue ||
+            _normalizeTicketType(attendee.ticketType) == _selectedTicketType;
         final bool attendeeMatchesSearch = search.isEmpty ||
             attendee.name.toLowerCase().contains(search) ||
             attendee.email.toLowerCase().contains(search);
 
         return statusOk && ticketOk && (orderMatchesSearch || attendeeMatchesSearch);
-      }).toList();
+      }).toList()
+        ..sort((AttendeeTicket left, AttendeeTicket right) {
+          return _compareTicketTypes(left.ticketType, right.ticketType);
+        });
 
       if (visibleAttendees.isNotEmpty) {
         filtered.add(
@@ -868,7 +901,99 @@ class _AttendeesViewState extends State<AttendeesView> {
       }
     }
 
+    filtered.sort((_FilteredOrderResult left, _FilteredOrderResult right) {
+      final int rankCompare = _ticketSortRank(left.attendees).compareTo(
+        _ticketSortRank(right.attendees),
+      );
+      if (rankCompare != 0) {
+        return rankCompare;
+      }
+      return _compareOrderDatesDescending(left.order.date, right.order.date);
+    });
+
     return filtered;
+  }
+
+  String _normalizeTicketType(String? value) {
+    return (value ?? '').trim().toLowerCase();
+  }
+
+  Map<String, int> _buildTicketTypeOrder(List<String> ticketTiers) {
+    final Map<String, int> order = <String, int>{};
+
+    for (int i = 0; i < ticketTiers.length; i++) {
+      final String key = _normalizeTicketType(ticketTiers[i]);
+      if (key.isNotEmpty && !order.containsKey(key)) {
+        order[key] = i;
+      }
+    }
+
+    return order;
+  }
+
+  int _compareTicketTypes(String? left, String? right) {
+    final String leftKey = _normalizeTicketType(left);
+    final String rightKey = _normalizeTicketType(right);
+    final Map<String, int> ticketTypeOrder = _buildTicketTypeOrder(
+      widget.selectedEvent?.ticketTiers ?? <String>[],
+    );
+
+    final int? leftRank = ticketTypeOrder[leftKey];
+    final int? rightRank = ticketTypeOrder[rightKey];
+
+    if (leftRank != null || rightRank != null) {
+      if (leftRank == null) {
+        return 1;
+      }
+      if (rightRank == null) {
+        return -1;
+      }
+      if (leftRank != rightRank) {
+        return leftRank.compareTo(rightRank);
+      }
+    }
+
+    return (left ?? '').toLowerCase().compareTo((right ?? '').toLowerCase());
+  }
+
+  int _ticketSortRank(List<AttendeeTicket> attendees) {
+    if (attendees.isEmpty) {
+      return 1 << 30;
+    }
+
+    final Map<String, int> ticketTypeOrder = _buildTicketTypeOrder(
+      widget.selectedEvent?.ticketTiers ?? <String>[],
+    );
+
+    return ticketTypeOrder[_normalizeTicketType(attendees.first.ticketType)] ??
+        (1 << 30);
+  }
+
+  int _compareOrderDatesDescending(String left, String right) {
+    final DateTime? leftDate = DateTime.tryParse(left.trim());
+    final DateTime? rightDate = DateTime.tryParse(right.trim());
+
+    if (leftDate != null || rightDate != null) {
+      if (leftDate == null) {
+        return 1;
+      }
+      if (rightDate == null) {
+        return -1;
+      }
+      return rightDate.compareTo(leftDate);
+    }
+
+    return right.toLowerCase().compareTo(left.toLowerCase());
+  }
+
+  String _displayTicketTypeLabel(String value) {
+    final String key = _normalizeTicketType(value);
+    for (final String tier in widget.selectedEvent?.ticketTiers ?? <String>[]) {
+      if (_normalizeTicketType(tier) == key) {
+        return tier.trim();
+      }
+    }
+    return _normalizeFilterLabel(value);
   }
 
   String _titleCase(String value) {
