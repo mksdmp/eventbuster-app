@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 import 'app/constants.dart';
 import 'app/routes.dart';
 import 'services/auth_service.dart';
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final WidgetsBinding widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   final String? token = await AuthService().getToken();
   final bool isSignedIn = token != null && token.trim().isNotEmpty;
 
   runApp(MyApp(initialRoute: isSignedIn ? Routes.dashboard : Routes.login));
+  FlutterNativeSplash.remove();
 }
 
 class MyApp extends StatelessWidget {
