@@ -14,9 +14,18 @@ class BookingsService {
 
   Future<MyBookingsPayload> fetchMyBookings({
     required String token,
+    required int page,
+    required int limit,
   }) async {
+    final Uri url = Uri.parse(_myBookingsUrl).replace(
+      queryParameters: <String, String>{
+        'page': '$page',
+        'limit': '$limit',
+      },
+    );
+
     final http.Response response = await http.get(
-      Uri.parse(_myBookingsUrl),
+      url,
       headers: <String, String>{
         'accept': 'application/json',
         'authorization': 'Bearer $token',

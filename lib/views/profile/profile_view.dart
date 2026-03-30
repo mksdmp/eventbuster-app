@@ -26,6 +26,8 @@ class ProfileView extends StatefulWidget {
 }
 
 class _ProfileViewState extends State<ProfileView> {
+  static const int _bookingsPageSize = 10;
+
   final AuthService _authService = AuthService();
   final BookingsService _bookingsService = BookingsService();
 
@@ -34,6 +36,12 @@ class _ProfileViewState extends State<ProfileView> {
   String? _downloadingPdfOrderId;
   String? _error;
   List<MyBookingOrder> _orders = <MyBookingOrder>[];
+  BookingsPagination _pagination = const BookingsPagination(
+    page: 1,
+    limit: _bookingsPageSize,
+    total: 0,
+    pages: 1,
+  );
 
   bool get _useSystemPdfDownloader {
     return !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
@@ -59,6 +67,8 @@ class _ProfileViewState extends State<ProfileView> {
 
       final MyBookingsPayload payload = await _bookingsService.fetchMyBookings(
         token: token,
+        page: _pagination.page,
+        limit: _pagination.limit,
       );
 
       if (!mounted) {
@@ -67,6 +77,7 @@ class _ProfileViewState extends State<ProfileView> {
 
       setState(() {
         _orders = payload.orders;
+        _pagination = payload.pagination;
       });
     } catch (e) {
       if (!mounted) {
@@ -100,8 +111,8 @@ class _ProfileViewState extends State<ProfileView> {
             userEmail: widget.userEmail,
           ),
           const SizedBox(height: 20),
-          const Text(
-            'My Bookings',
+          Text(
+            'My Booking (${_pagination.total})',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
@@ -152,9 +163,37 @@ class _ProfileViewState extends State<ProfileView> {
                 ),
               ),
             ),
+          if (!_isLoading && _error == null && _pagination.pages > 1) ...<Widget>[
+            const SizedBox(height: 8),
+            _BookingsPaginationBar(
+              currentPage: _pagination.page,
+              totalPages: _pagination.pages,
+              hasPreviousPage: _pagination.page > 1,
+              hasNextPage: _pagination.page < _pagination.pages,
+              onPrevious: () => _changePage(_pagination.page - 1),
+              onNext: () => _changePage(_pagination.page + 1),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  Future<void> _changePage(int nextPage) async {
+    if (_isLoading || nextPage < 1 || nextPage > _pagination.pages) {
+      return;
+    }
+
+    setState(() {
+      _pagination = BookingsPagination(
+        page: nextPage,
+        limit: _pagination.limit,
+        total: _pagination.total,
+        pages: _pagination.pages,
+      );
+    });
+
+    await _loadBookings();
   }
 
   Future<void> _handleDownloadPdf(MyBookingOrder order) async {
@@ -614,6 +653,68 @@ class _TicketQrCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
+        ],
+      ),
+    );
+  }
+}
+
+class _BookingsPaginationBar extends StatelessWidget {
+  const _BookingsPaginationBar({
+    required this.currentPage,
+    required this.totalPages,
+    required this.hasPreviousPage,
+    required this.hasNextPage,
+    required this.onPrevious,
+    required this.onNext,
+  });
+
+  final int currentPage;
+  final int totalPages;
+  final bool hasPreviousPage;
+  final bool hasNextPage;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFFFD7BF)),
+      ),
+      child: Row(
+        children: [
+          Text(
+            'Page $currentPage of $totalPages',
+            style: const TextStyle(
+              color: Color(0xFF4B5563),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const Spacer(),
+          OutlinedButton(
+            onPressed: hasPreviousPage ? onPrevious : null,
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(44, 44),
+              padding: EdgeInsets.zero,
+            ),
+            child: const Icon(Icons.chevron_left_rounded),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton(
+            onPressed: hasNextPage ? onNext : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConstants.appOrange,
+              minimumSize: const Size(44, 44),
+              padding: EdgeInsets.zero,
+              shape: const CircleBorder(),
+            ),
+            child: const Icon(Icons.chevron_right_rounded, color: Colors.white),
+          ),
         ],
       ),
     );

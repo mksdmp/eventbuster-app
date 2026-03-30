@@ -1,8 +1,10 @@
 class MyBookingsPayload {
   final List<MyBookingOrder> orders;
+  final BookingsPagination pagination;
 
   const MyBookingsPayload({
     required this.orders,
+    required this.pagination,
   });
 
   factory MyBookingsPayload.fromJson(Map<String, dynamic> json) {
@@ -11,8 +13,65 @@ class MyBookingsPayload {
         .whereType<Map<String, dynamic>>()
         .map(MyBookingOrder.fromJson)
         .toList();
+    final Map<String, dynamic> paginationMap = _asMap(data['pagination']);
 
-    return MyBookingsPayload(orders: orders);
+    return MyBookingsPayload(
+      orders: orders,
+      pagination: BookingsPagination.fromJson(
+        paginationMap,
+        fallbackCount: orders.length,
+      ),
+    );
+  }
+}
+
+class BookingsPagination {
+  final int page;
+  final int limit;
+  final int total;
+  final int pages;
+
+  const BookingsPagination({
+    required this.page,
+    required this.limit,
+    required this.total,
+    required this.pages,
+  });
+
+  factory BookingsPagination.fromJson(
+    Map<String, dynamic> json, {
+    int fallbackCount = 0,
+  }) {
+    final int page = _readInt(
+      json,
+      <String>['page', 'currentPage', 'current_page'],
+      fallback: 1,
+    );
+    final int limit = _readInt(
+      json,
+      <String>['limit', 'perPage', 'per_page', 'pageSize', 'page_size'],
+      fallback: fallbackCount > 0 ? fallbackCount : 10,
+    );
+    final int total = _readInt(
+      json,
+      <String>['total', 'count', 'totalCount', 'total_count'],
+      fallback: fallbackCount,
+    );
+    final int parsedPages = _readInt(
+      json,
+      <String>['pages', 'totalPages', 'total_pages', 'pageCount', 'page_count'],
+      fallback: 0,
+    );
+    final int derivedPages = total > 0 && limit > 0 ? (total / limit).ceil() : 1;
+
+    return BookingsPagination(
+      page: page < 1 ? 1 : page,
+      limit: limit < 1 ? (fallbackCount > 0 ? fallbackCount : 10) : limit,
+      total: total < 0 ? 0 : total,
+      pages: parsedPages > 0
+          ? parsedPages
+          : (derivedPages > 0 ? derivedPages : 1),
+    );
   }
 }
 
