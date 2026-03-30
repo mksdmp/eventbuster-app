@@ -163,7 +163,7 @@ class _ProfileViewState extends State<ProfileView> {
                 ),
               ),
             ),
-          if (!_isLoading && _error == null && _pagination.pages > 1) ...<Widget>[
+          if (!_isLoading && _error == null && _orders.isNotEmpty) ...<Widget>[
             const SizedBox(height: 8),
             _BookingsPaginationBar(
               currentPage: _pagination.page,

@@ -8,12 +8,24 @@ class MyBookingsPayload {
   });
 
   factory MyBookingsPayload.fromJson(Map<String, dynamic> json) {
-    final Map<String, dynamic> data = _asMap(json['data']);
-    final List<MyBookingOrder> orders = _asList(data['orders'])
-        .whereType<Map<String, dynamic>>()
-        .map(MyBookingOrder.fromJson)
-        .toList();
-    final Map<String, dynamic> paginationMap = _asMap(data['pagination']);
+    final dynamic rawData = json['data'];
+    final List<MyBookingOrder> orders;
+    final Map<String, dynamic> paginationMap;
+
+    if (rawData is List) {
+      orders = rawData
+          .whereType<Map<String, dynamic>>()
+          .map(MyBookingOrder.fromJson)
+          .toList();
+      paginationMap = const <String, dynamic>{};
+    } else {
+      final Map<String, dynamic> data = _asMap(rawData);
+      orders = _asList(data['orders'])
+          .whereType<Map<String, dynamic>>()
+          .map(MyBookingOrder.fromJson)
+          .toList();
+      paginationMap = _asMap(data['pagination']);
+    }
 
     return MyBookingsPayload(
       orders: orders,

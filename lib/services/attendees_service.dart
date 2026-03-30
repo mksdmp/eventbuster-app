@@ -72,7 +72,9 @@ class AttendeesService {
     );
 
     final String? responseMessage = _extractApiMessage(response.body);
-    final bool alreadyCheckedIn = checkedIn && _isAlreadyCheckedInMessage(responseMessage);
+    final bool alreadyCheckedIn = checkedIn &&
+        (response.statusCode == 409 ||
+            _isAlreadyCheckedInMessage(responseMessage));
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       if (alreadyCheckedIn) {
@@ -356,7 +358,7 @@ String _normalizeCheckInMessage({
   required bool alreadyCheckedIn,
 }) {
   if (alreadyCheckedIn) {
-    return 'You have already checked in. Try another.';
+    return 'You have successfully already check in. Try another';
   }
 
   final String? normalizedMessage = _asNonEmptyString(message);

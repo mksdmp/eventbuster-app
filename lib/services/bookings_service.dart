@@ -14,8 +14,8 @@ class BookingsService {
 
   Future<MyBookingsPayload> fetchMyBookings({
     required String token,
-    required int page,
-    required int limit,
+    int page = 1,
+    int limit = 10,
   }) async {
     final Uri url = Uri.parse(_myBookingsUrl).replace(
       queryParameters: <String, String>{
