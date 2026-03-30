@@ -10,11 +10,13 @@ class AttendeesView extends StatefulWidget {
   const AttendeesView({
     super.key,
     this.selectedEvent,
+    this.refreshTick = 0,
     this.onOpenHome,
     this.onOpenScanQr,
   });
 
   final OrganizerEventSummary? selectedEvent;
+  final int refreshTick;
   final VoidCallback? onOpenHome;
   final VoidCallback? onOpenScanQr;
 
@@ -56,8 +58,17 @@ class _AttendeesViewState extends State<AttendeesView> {
   @override
   void didUpdateWidget(covariant AttendeesView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.selectedEvent?.id != widget.selectedEvent?.id) {
+    final bool selectedEventChanged =
+        oldWidget.selectedEvent?.id != widget.selectedEvent?.id;
+    final bool refreshTickChanged = oldWidget.refreshTick != widget.refreshTick;
+
+    if (selectedEventChanged) {
       _resetViewState();
+      _loadAttendees();
+      return;
+    }
+
+    if (refreshTickChanged && widget.selectedEvent != null) {
       _loadAttendees();
     }
   }
@@ -1115,7 +1126,7 @@ class _AttendeesViewState extends State<AttendeesView> {
         throw Exception('No auth token found. Please sign in again.');
       }
 
-      await _service.updateCheckInStatus(
+      final CheckInStatusUpdateResult result = await _service.updateCheckInStatus(
         attendeeId: attendee.id,
         checkedIn: checkedIn,
         token: token,
@@ -1128,7 +1139,7 @@ class _AttendeesViewState extends State<AttendeesView> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            checkedIn ? 'Attendee checked in successfully' : 'Check-in undone successfully',
+            result.message,
           ),
         ),
       );
@@ -1140,7 +1151,7 @@ class _AttendeesViewState extends State<AttendeesView> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
+        SnackBar(content: Text(_formatErrorMessage(e))),
       );
     }
   }
@@ -1208,7 +1219,7 @@ class _AttendeesViewState extends State<AttendeesView> {
         throw Exception('No auth token found. Please sign in again.');
       }
 
-      await _service.updateCheckInStatus(
+      final CheckInStatusUpdateResult result = await _service.updateCheckInStatus(
         attendeeId: attendeeId,
         checkedIn: true,
         token: token,
@@ -1219,7 +1230,7 @@ class _AttendeesViewState extends State<AttendeesView> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Attendee checked in successfully')),
+        SnackBar(content: Text(result.message)),
       );
 
       await _loadAttendees();
@@ -1227,11 +1238,20 @@ class _AttendeesViewState extends State<AttendeesView> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
+          SnackBar(content: Text(_formatErrorMessage(e))),
         );
       }
       return false;
     }
+  }
+
+  String _formatErrorMessage(Object error) {
+    final String message = error.toString().trim();
+    const String exceptionPrefix = 'Exception: ';
+    if (message.startsWith(exceptionPrefix)) {
+      return message.substring(exceptionPrefix.length).trim();
+    }
+    return message;
   }
 
   Future<void> _openAddAttendeeDialog() async {

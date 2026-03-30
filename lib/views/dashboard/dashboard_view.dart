@@ -31,6 +31,7 @@ class _DashboardViewState extends State<DashboardView> {
   String _displayEmail = '';
   List<OrganizerEventSummary> _events = <OrganizerEventSummary>[];
   OrganizerEventSummary? _selectedEvent;
+  int _attendeesRefreshTick = 0;
 
   @override
   void initState() {
@@ -98,7 +99,9 @@ class _DashboardViewState extends State<DashboardView> {
         }
       }
 
-      if (selectedEvent == null && (_currentIndex == 1 || _currentIndex == 2) && events.isNotEmpty) {
+      if (selectedEvent == null &&
+          (_currentIndex == 1 || _currentIndex == 2) &&
+          events.isNotEmpty) {
         selectedEvent = events.first;
         await _authService.setSelectedEventId(selectedEvent.id);
       }
@@ -151,7 +154,9 @@ class _DashboardViewState extends State<DashboardView> {
   Future<void> _handleTabTap(int index) async {
     OrganizerEventSummary? selectedEvent = _selectedEvent;
 
-    if ((index == 1 || index == 2) && selectedEvent == null && _events.isNotEmpty) {
+    if ((index == 1 || index == 2) &&
+        selectedEvent == null &&
+        _events.isNotEmpty) {
       selectedEvent = _events.first;
       await _authService.setSelectedEventId(selectedEvent.id);
     }
@@ -163,6 +168,16 @@ class _DashboardViewState extends State<DashboardView> {
     setState(() {
       _currentIndex = index;
       _selectedEvent = selectedEvent;
+    });
+  }
+
+  void _handleScannerCheckIn() {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _attendeesRefreshTick++;
     });
   }
 
@@ -291,9 +306,11 @@ class _DashboardViewState extends State<DashboardView> {
           isEventsLoading: _isLoadingEvents,
           hasEvents: _events.isNotEmpty,
           isActive: _currentIndex == 1,
+          onCheckInUpdated: _handleScannerCheckIn,
         ),
         AttendeesView(
           selectedEvent: _selectedEvent,
+          refreshTick: _attendeesRefreshTick,
           onOpenHome: () {
             _handleTabTap(0);
           },

@@ -14,12 +14,14 @@ class ScanQrView extends StatefulWidget {
     required this.isEventsLoading,
     required this.hasEvents,
     required this.isActive,
+    this.onCheckInUpdated,
   });
 
   final OrganizerEventSummary? selectedEvent;
   final bool isEventsLoading;
   final bool hasEvents;
   final bool isActive;
+  final VoidCallback? onCheckInUpdated;
 
   @override
   State<ScanQrView> createState() => _ScanQrViewState();
@@ -123,6 +125,7 @@ class _ScanQrViewState extends State<ScanQrView> {
     final String? attendeeId = payload.attendeeId;
 
     if (attendeeId == null || attendeeId.isEmpty) {
+      await _pauseScanner();
       final String message = payload.eventId != null
           ? 'This QR/manual code only contains event id. Check-in API requires attendee id.'
           : 'Unable to find attendee id in the scanned QR/manual code.';
@@ -131,17 +134,20 @@ class _ScanQrViewState extends State<ScanQrView> {
         message: message,
         isSuccess: false,
       );
+      await _markReadyForNextScan(trimmed);
       return;
     }
 
     if (widget.selectedEvent != null &&
         payload.eventId != null &&
         payload.eventId != widget.selectedEvent!.id) {
+      await _pauseScanner();
       await _showResultDialog(
         title: 'Check-In Failed',
         message: 'This QR code belongs to a different event.',
         isSuccess: false,
       );
+      await _markReadyForNextScan(trimmed);
       return;
     }
 
@@ -157,7 +163,8 @@ class _ScanQrViewState extends State<ScanQrView> {
         throw Exception('No auth token found. Please sign in again.');
       }
 
-      await _service.updateCheckInStatus(
+      final CheckInStatusUpdateResult result =
+          await _service.updateCheckInStatus(
         attendeeId: attendeeId,
         checkedIn: true,
         token: token,
@@ -172,24 +179,75 @@ class _ScanQrViewState extends State<ScanQrView> {
         _lastResolvedAttendeeId = attendeeId;
       });
 
+      widget.onCheckInUpdated?.call();
+      await _pauseScanner();
       await _showResultDialog(
-        title: 'Check-In Successful',
-        message: 'Attendee checked in successfully.',
-        isSuccess: true,
+        title:
+            result.alreadyCheckedIn ? 'Already Checked In' : 'Check-In Successful',
+        message: result.message,
+        isSuccess: !result.alreadyCheckedIn,
       );
     } catch (e) {
+      await _pauseScanner();
       await _showResultDialog(
         title: 'Check-In Failed',
-        message: e.toString(),
+        message: _formatErrorMessage(e),
         isSuccess: false,
       );
     } finally {
       if (mounted) {
         setState(() {
           _isSubmitting = false;
+          _lastProcessedPayload = trimmed;
+          _lastProcessedAt = DateTime.now();
         });
       }
+      await _resumeScanner();
     }
+  }
+
+  Future<void> _pauseScanner() async {
+    if (!_supportsScanner) {
+      return;
+    }
+
+    try {
+      await _scannerController.stop();
+    } catch (_) {
+      // Ignore scanner lifecycle errors so the check-in flow can continue.
+    }
+  }
+
+  Future<void> _resumeScanner() async {
+    if (!_supportsScanner || !mounted || !widget.isActive) {
+      return;
+    }
+
+    try {
+      await _scannerController.start();
+    } catch (_) {
+      // Ignore scanner lifecycle errors so the UI stays usable.
+    }
+  }
+
+  Future<void> _markReadyForNextScan(String rawValue) async {
+    if (mounted) {
+      setState(() {
+        _lastProcessedPayload = rawValue;
+        _lastProcessedAt = DateTime.now();
+      });
+    }
+
+    await _resumeScanner();
+  }
+
+  String _formatErrorMessage(Object error) {
+    final String message = error.toString().trim();
+    const String exceptionPrefix = 'Exception: ';
+    if (message.startsWith(exceptionPrefix)) {
+      return message.substring(exceptionPrefix.length).trim();
+    }
+    return message;
   }
 
   void _showMessage(String message) {
@@ -413,8 +471,8 @@ class _ScanQrViewState extends State<ScanQrView> {
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
-                ),
               ),
+            ),
           // const Text(
           //   'Manual code',
           //   style: TextStyle(

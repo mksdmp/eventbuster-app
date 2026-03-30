@@ -4,6 +4,16 @@ import 'package:http/http.dart' as http;
 
 import '../models/attendee_models.dart';
 
+class CheckInStatusUpdateResult {
+  const CheckInStatusUpdateResult({
+    required this.message,
+    required this.alreadyCheckedIn,
+  });
+
+  final String message;
+  final bool alreadyCheckedIn;
+}
+
 class AttendeesService {
   static const String _baseUrl = 'https://eventbuster.com/api/attendees';
   static const String _myEventsUrl = 'https://eventbuster.com/api/events/my-events';
@@ -40,7 +50,7 @@ class AttendeesService {
     return AttendeesPayload.fromJson(decoded);
   }
 
-  Future<void> updateCheckInStatus({
+  Future<CheckInStatusUpdateResult> updateCheckInStatus({
     required String attendeeId,
     required bool checkedIn,
     required String token,
@@ -61,9 +71,34 @@ class AttendeesService {
       }),
     );
 
+    final String? responseMessage = _extractApiMessage(response.body);
+    final bool alreadyCheckedIn = checkedIn && _isAlreadyCheckedInMessage(responseMessage);
+
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Failed to update check-in (${response.statusCode})');
+      if (alreadyCheckedIn) {
+        return CheckInStatusUpdateResult(
+          message: _normalizeCheckInMessage(
+            message: responseMessage,
+            checkedIn: checkedIn,
+            alreadyCheckedIn: true,
+          ),
+          alreadyCheckedIn: true,
+        );
+      }
+
+      throw Exception(
+        responseMessage ?? 'Failed to update check-in (${response.statusCode})',
+      );
     }
+
+    return CheckInStatusUpdateResult(
+      message: _normalizeCheckInMessage(
+        message: responseMessage,
+        checkedIn: checkedIn,
+        alreadyCheckedIn: alreadyCheckedIn,
+      ),
+      alreadyCheckedIn: alreadyCheckedIn,
+    );
   }
 
   Future<List<OrganizerEventOption>> fetchMyEvents({
@@ -247,6 +282,93 @@ class AttendeesService {
       throw Exception('Failed to save attendee note (${response.statusCode})');
     }
   }
+}
+
+String? _extractApiMessage(String responseBody) {
+  final String trimmed = responseBody.trim();
+  if (trimmed.isEmpty) {
+    return null;
+  }
+
+  try {
+    final dynamic decoded = jsonDecode(trimmed);
+    return _findMessageInDecoded(decoded);
+  } catch (_) {
+    return trimmed;
+  }
+}
+
+String? _findMessageInDecoded(dynamic value) {
+  if (value is Map<String, dynamic>) {
+    for (final String key in <String>['message', 'msg', 'error']) {
+      final dynamic candidate = value[key];
+      final String? message = _asNonEmptyString(candidate);
+      if (message != null) {
+        return message;
+      }
+    }
+
+    for (final String key in <String>['data', 'result']) {
+      final String? nestedMessage = _findMessageInDecoded(value[key]);
+      if (nestedMessage != null) {
+        return nestedMessage;
+      }
+    }
+  }
+
+  if (value is List) {
+    for (final dynamic item in value) {
+      final String? nestedMessage = _findMessageInDecoded(item);
+      if (nestedMessage != null) {
+        return nestedMessage;
+      }
+    }
+  }
+
+  return null;
+}
+
+String? _asNonEmptyString(dynamic value) {
+  if (value == null) {
+    return null;
+  }
+
+  final String text = value.toString().trim();
+  return text.isEmpty ? null : text;
+}
+
+bool _isAlreadyCheckedInMessage(String? message) {
+  if (message == null) {
+    return false;
+  }
+
+  final String normalized = message.toLowerCase();
+  return normalized.contains('already') &&
+      (normalized.contains('check in') ||
+          normalized.contains('checked in') ||
+          normalized.contains('check-in') ||
+          normalized.contains('checkin'));
+}
+
+String _normalizeCheckInMessage({
+  required String? message,
+  required bool checkedIn,
+  required bool alreadyCheckedIn,
+}) {
+  if (alreadyCheckedIn) {
+    return 'You have already checked in. Try another.';
+  }
+
+  final String? normalizedMessage = _asNonEmptyString(message);
+  if (normalizedMessage != null) {
+    return normalizedMessage;
+  }
+
+  if (checkedIn) {
+    return 'Attendee checked in successfully.';
+  }
+
+  return 'Check-in undone successfully.';
 }
 
 class OrganizerEventOption {
